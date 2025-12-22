@@ -7,7 +7,6 @@ export const getProperties = async (req, res) => {
         const properties = await Property.find({ createdBy: req.user.id });
         res.json(properties);
     } catch (error) {
-        console.log(error);
         res.status(500)
             .json({ message: ['Error al obtener las propiedades'] });
     }
@@ -19,7 +18,6 @@ export const getAllProperties = async (req, res) => {
         const properties = await Property.find({ 'availability.isAvailable': true });
         res.json(properties);
     } catch (error) {
-        console.log(error);
         res.status(500)
             .json({ message: ['Error al obtener todas las propiedades'] });
     }
@@ -28,8 +26,36 @@ export const getAllProperties = async (req, res) => {
 // Función para crear una propiedad
 export const createProperty = async (req, res) => {
     try {
-        console.log('CreateProperty - req.body:', req.body);
-        console.log('CreateProperty - req.files:', req.files);
+        // Procesar campos anidados de FormData
+        const processedBody = { ...req.body };
+        
+        // Convertir campos con notación de punto a objetos anidados
+        Object.keys(req.body).forEach(key => {
+            if (key.includes('.')) {
+                const parts = key.split('.');
+                let current = processedBody;
+                
+                // Crear estructura anidada
+                for (let i = 0; i < parts.length - 1; i++) {
+                    if (!current[parts[i]]) {
+                        current[parts[i]] = {};
+                    }
+                    current = current[parts[i]];
+                }
+                
+                // Asignar valor (convertir a número si es lat o lng)
+                const lastPart = parts[parts.length - 1];
+                let value = req.body[key];
+                
+                if ((lastPart === 'lat' || lastPart === 'lng') && value) {
+                    value = parseFloat(value);
+                }
+                
+                current[lastPart] = value;
+                delete processedBody[key];
+            }
+        });
+        
         const {
             title,
             description,
@@ -39,7 +65,7 @@ export const createProperty = async (req, res) => {
             amenities,
             availability,
             contact
-        } = req.body;
+        } = processedBody;
 
         // Procesar imágenes (hasta 10 máximo)
         let images = [];
@@ -92,7 +118,6 @@ export const getProperty = async (req, res) => {
         }
         res.json(property);
     } catch (error) {
-        console.log(error);
         res.status(500)
             .json({ message: ['Error al obtener la propiedad'] });
     }
@@ -122,7 +147,6 @@ export const deleteProperty = async (req, res) => {
 
         res.json(deletedProperty);
     } catch (error) {
-        console.log(error);
         res.status(500)
             .json({ message: ['Error al eliminar la propiedad'] });
     }
@@ -151,7 +175,12 @@ export const updateProperty = async (req, res) => {
                 for (let i = 0; i < parts.length; i++) {
                     const p = parts[i];
                     if (i === parts.length - 1) {
-                        cur[p] = value;
+                        // Convertir a número si es lat o lng
+                        let finalValue = value;
+                        if ((p === 'lat' || p === 'lng') && value) {
+                            finalValue = parseFloat(value);
+                        }
+                        cur[p] = finalValue;
                     } else {
                         cur[p] = cur[p] || {};
                         cur = cur[p];
@@ -211,7 +240,6 @@ export const updateProperty = async (req, res) => {
 
         res.json(updatedProperty);
     } catch (error) {
-        console.log(error);
         res.status(500)
             .json({ message: ['Error al actualizar la propiedad'] });
     }
@@ -241,7 +269,6 @@ export const addImages = async (req, res) => {
 
         res.json({ message: 'Imágenes agregadas', property });
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al agregar imágenes'] });
     }
 };
@@ -279,7 +306,6 @@ export const deleteImage = async (req, res) => {
         await property.save();
         res.json({ message: 'Imagen eliminada', property });
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al eliminar imagen'] });
     }
 };
@@ -308,7 +334,6 @@ export const setMainImage = async (req, res) => {
         
         res.json({ message: 'Imagen principal actualizada', property });
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al establecer imagen principal'] });
     }
 };
@@ -353,7 +378,6 @@ export const changePropertyStatus = async (req, res) => {
             property 
         });
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al cambiar estado'] });
     }
 };
@@ -371,7 +395,6 @@ export const getPropertyHistory = async (req, res) => {
 
         res.json(property.statusHistory);
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al obtener historial'] });
     }
 };

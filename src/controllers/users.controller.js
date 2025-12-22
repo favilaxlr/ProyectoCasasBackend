@@ -11,7 +11,6 @@ export const getUsers = async (req, res) => {
         
         res.json(users);
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al obtener usuarios'] });
     }
 };
@@ -29,7 +28,6 @@ export const getUser = async (req, res) => {
         
         res.json(user);
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al obtener usuario'] });
     }
 };
@@ -60,7 +58,6 @@ export const changeUserRole = async (req, res) => {
             user 
         });
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al cambiar rol'] });
     }
 };
@@ -71,7 +68,6 @@ export const getRoles = async (req, res) => {
         const roles = await Role.find();
         res.json(roles);
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al obtener roles'] });
     }
 };
@@ -87,7 +83,6 @@ export const deleteUser = async (req, res) => {
         
         res.json({ message: 'Usuario eliminado correctamente' });
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al eliminar usuario'] });
     }
 };

@@ -6,11 +6,7 @@ import dotenv from 'dotenv';
 
 
 //Configuramos la lectura de las variables de entorno
-//para configurar las URL del Backend y Frontend
 dotenv.config();
-
-console.log("backend:" ,process.env.BASE_URL_BACKEND);
-console.log("frontend:" ,process.env.BASE_URL_FRONTEND);
 
 //Importamos las rutas para usuarios
 import authRoutes from './routes/auth.routes.js'

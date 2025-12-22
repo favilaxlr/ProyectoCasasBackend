@@ -16,7 +16,6 @@ const roleUser = process.env.SETUP_ROLE_USER;
 //Funcion para registrar usuarios
 export const register = async (req, res)=>{
     const { username, email, password} = req.body;
-    //console.log(username, email, password);
     
     try {
         //Validamos que el email no se este registrado en la base de datos
@@ -67,9 +66,7 @@ export const register = async (req, res)=>{
             role: role.role
         });
     } catch (error) {
-            console.log(error);
-            console.log("Error al registrar");
-            res.status(400)
+            res.status(500)
                 .json({message: ["Error al registrar"]});
     }
 }//Fin de register
@@ -101,13 +98,11 @@ export const login = async (req, res)=>{
             res.cookie('token', token, {
                 sameSite: 'lax', //para indicar que el backend y front son locales para desarrollo
             });
-            console.log("Login exitoso en local")
         } else{
             res.cookie('token', token, {
                 sameSite: 'none', //para peticiones remotas
                 secure: true, //para activar https en deployment
             });
-            console.log("Login exitoso en remoto")
         } //Fin de if(process.env.ENVIROMENT)
 
         const role = await Role.findById(userFound.role);
@@ -122,10 +117,8 @@ export const login = async (req, res)=>{
             role: role
         })
     } catch (error){
-        console.log(error);
-        console.log("Error al iniciar sesion")
-        res.status(400)
-            .json({message: ["Error al inciar sesión"]});
+        res.status(500)
+            .json({message: ["Error al iniciar sesión"]});
     }
 
 }//Fin de login

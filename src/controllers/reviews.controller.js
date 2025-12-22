@@ -74,7 +74,6 @@ export const createReview = async (req, res) => {
         const savedReview = await newReview.save();
         res.json(savedReview);
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al crear reseña'] });
     }
 };
@@ -124,7 +123,6 @@ export const getPropertyReviews = async (req, res) => {
             stats: stats[0] || { averageRating: 0, totalReviews: 0 }
         });
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al obtener reseñas'] });
     }
 };
@@ -139,7 +137,6 @@ export const getPendingReviews = async (req, res) => {
 
         res.json(reviews);
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al obtener reseñas pendientes'] });
     }
 };
@@ -175,7 +172,6 @@ export const moderateReview = async (req, res) => {
 
         res.json({ message: `Reseña ${action === 'approve' ? 'aprobada' : action === 'reject' ? 'rechazada' : 'marcada para cambios'}`, review });
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al moderar reseña'] });
     }
 };
@@ -198,7 +194,6 @@ export const toggleFeaturedReview = async (req, res) => {
             review 
         });
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al cambiar estado destacado'] });
     }
 };
@@ -239,7 +234,6 @@ export const voteHelpful = async (req, res) => {
             helpfulCount: review.helpfulCount
         });
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al votar reseña'] });
     }
 };

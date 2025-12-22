@@ -93,7 +93,6 @@ export const createAppointment = async (req, res) => {
         
         res.json(savedAppointment);
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al crear la cita'] });
     }
 };
@@ -127,7 +126,6 @@ export const getAppointments = async (req, res) => {
         
         res.json(appointments);
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al obtener las citas'] });
     }
 };
@@ -145,7 +143,6 @@ export const getAppointment = async (req, res) => {
         
         res.json(appointment);
     } catch (error) {
-        console.log(error);
         res.status(500)
             .json({ message: ['Error al obtener la cita'] });
     }
@@ -166,7 +163,6 @@ export const confirmAppointment = async (req, res) => {
 
         res.json({ message: 'Cita confirmada exitosamente', appointment });
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al confirmar la cita'] });
     }
 };
@@ -186,7 +182,6 @@ export const completeAppointment = async (req, res) => {
 
         res.json({ message: 'Cita marcada como completada', appointment });
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al completar la cita'] });
     }
 };
@@ -209,7 +204,6 @@ export const cancelAppointment = async (req, res) => {
 
         res.json({ message: 'Cita cancelada', appointment });
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al cancelar la cita'] });
     }
 };
@@ -264,7 +258,6 @@ export const getAvailableSlots = async (req, res) => {
         
         res.json({ availableSlots: slots });
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al obtener horarios disponibles'] });
     }
 };
@@ -278,7 +271,6 @@ export const getUserAppointments = async (req, res) => {
         
         res.json(appointments);
     } catch (error) {
-        console.log(error);
         res.status(500).json({ message: ['Error al obtener citas del usuario'] });
     }
 };
