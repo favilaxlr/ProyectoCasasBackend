@@ -12,7 +12,7 @@ export const isAdminOrCoAdmin = async (req, res, next) => {
 
         if (!userFound) {
             return res.status(400)
-                .json({ message: ["No autorizado, usuario no encontrado"] });
+                .json({ message: ["No autorizado, usuario no encontrado"] }); 
         }
 
         const role = await Role.findById(userFound.role);

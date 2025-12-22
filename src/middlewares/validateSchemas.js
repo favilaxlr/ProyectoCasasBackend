@@ -66,6 +66,16 @@ export const validateSchema = (schema) => (req, res, next) => {
             if (nested.details.furnished !== undefined) nested.details.furnished = tryParseBoolean(nested.details.furnished);
         }
 
+        // Address coordinates parsing
+        if (nested.address && nested.address.coordinates) {
+            if (nested.address.coordinates.lat !== undefined) {
+                nested.address.coordinates.lat = tryParseNumber(nested.address.coordinates.lat);
+            }
+            if (nested.address.coordinates.lng !== undefined) {
+                nested.address.coordinates.lng = tryParseNumber(nested.address.coordinates.lng);
+            }
+        }
+
         // Contact parsing
         if (nested.contact) {
             if (nested.contact.phone !== undefined) nested.contact.phone = nested.contact.phone;
