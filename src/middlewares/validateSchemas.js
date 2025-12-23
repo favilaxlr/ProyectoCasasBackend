@@ -53,6 +53,7 @@ export const validateSchema = (schema) => (req, res, next) => {
 
         // Intentar convertir a números y booleanos en campos comunes
         if (nested.price) {
+            if (nested.price.sale !== undefined) nested.price.sale = tryParseNumber(nested.price.sale);
             if (nested.price.rent !== undefined) nested.price.rent = tryParseNumber(nested.price.rent);
             if (nested.price.deposit !== undefined) nested.price.deposit = tryParseNumber(nested.price.deposit);
         }

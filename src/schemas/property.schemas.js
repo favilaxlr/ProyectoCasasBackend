@@ -23,33 +23,66 @@ export const propertySchema = z.object({
             required_error: "El código postal es requerido"
         }),
         coordinates: z.object({
-            lat: z.number().optional(),
-            lng: z.number().optional()
+            lat: z.preprocess(
+                (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+                z.number().optional()
+            ),
+            lng: z.preprocess(
+                (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+                z.number().optional()
+            )
         }).optional()
     }),
     
     price: z.object({
-        sale: z.number({
-            required_error: "El precio de venta es requerido"
-        }).positive("El precio debe ser positivo"),
+        sale: z.preprocess(
+            (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+            z.number({
+                required_error: "El precio de venta es requerido",
+                invalid_type_error: "El precio debe ser un número"
+            }).positive("El precio debe ser positivo")
+        ),
         currency: z.string().default("USD")
     }),
     
     details: z.object({
-        bedrooms: z.number({
-            required_error: "El número de habitaciones es requerido"
-        }).min(0, "Las habitaciones no pueden ser negativas"),
-        bathrooms: z.number({
-            required_error: "El número de baños es requerido"
-        }).min(0, "Los baños no pueden ser negativos"),
-        squareFeet: z.number().optional(),
+        bedrooms: z.preprocess(
+            (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+            z.number({
+                required_error: "El número de habitaciones es requerido",
+                invalid_type_error: "El número de habitaciones debe ser un número"
+            }).min(0, "Las habitaciones no pueden ser negativas")
+        ),
+        bathrooms: z.preprocess(
+            (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+            z.number({
+                required_error: "El número de baños es requerido",
+                invalid_type_error: "El número de baños debe ser un número"
+            }).min(0, "Los baños no pueden ser negativos")
+        ),
+        squareFeet: z.preprocess(
+            (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+            z.number().optional()
+        ),
         propertyType: z.enum(["house", "apartment", "condo", "townhouse"], {
             required_error: "El tipo de propiedad es requerido"
         }),
-        yearBuilt: z.number().optional(),
-        parking: z.boolean().default(false),
-        petFriendly: z.boolean().default(false),
-        furnished: z.boolean().default(false)
+        yearBuilt: z.preprocess(
+            (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+            z.number().optional()
+        ),
+        parking: z.preprocess(
+            (val) => val === 'true' || val === true,
+            z.boolean().default(false)
+        ),
+        petFriendly: z.preprocess(
+            (val) => val === 'true' || val === true,
+            z.boolean().default(false)
+        ),
+        furnished: z.preprocess(
+            (val) => val === 'true' || val === true,
+            z.boolean().default(false)
+        )
     }),
     
     amenities: z.array(z.string()).optional(),
