@@ -44,7 +44,7 @@ const appointmentSchema = new mongoose.Schema(
         // Estado de la cita
         status: {
             type: String,
-            enum: ["pending", "confirmed", "cancelled", "completed"],
+            enum: ["pending", "confirmed", "cancelled", "completed", "pending_sms_confirmation"],
             default: "pending"
         },
         
@@ -52,6 +52,11 @@ const appointmentSchema = new mongoose.Schema(
         confirmationCode: {
             type: String,
             unique: true
+        },
+        
+        // Fecha de confirmación
+        confirmedAt: {
+            type: Date
         },
         
         // Historial de SMS enviados

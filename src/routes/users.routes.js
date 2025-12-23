@@ -4,12 +4,21 @@ import {
     getUser, 
     changeUserRole, 
     getRoles, 
-    deleteUser 
+    deleteUser,
+    updateProfile,
+    changePassword,
+    updateProfileImage
 } from '../controllers/users.controller.js';
 import { validateToken } from '../middlewares/validateToken.js';
 import { isAdmin } from '../middlewares/isAdmin.js';
+import { uploadSingleToCloudinary } from '../middlewares/uploadImage.js';
 
 const router = Router();
+
+// Rutas que solo requieren autenticación (cualquier usuario)
+router.put('/profile', validateToken, updateProfile);
+router.put('/profile/password', validateToken, changePassword);
+router.put('/profile/image', validateToken, uploadSingleToCloudinary, updateProfileImage);
 
 // Todas las rutas requieren autenticación y rol de admin
 router.use(validateToken);

@@ -29,10 +29,9 @@ export const propertySchema = z.object({
     }),
     
     price: z.object({
-        rent: z.number({
-            required_error: "El precio de renta es requerido"
+        sale: z.number({
+            required_error: "El precio de venta es requerido"
         }).positive("El precio debe ser positivo"),
-        deposit: z.number().optional(),
         currency: z.string().default("USD")
     }),
     

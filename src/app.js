@@ -19,6 +19,8 @@ import appointmentRoutes from './routes/appointments.routes.js';
 import userRoutes from './routes/users.routes.js';
 //Importamos las rutas para reseñas
 import reviewRoutes from './routes/reviews.routes.js';
+//Importamos las rutas para notificaciones
+import notificationRoutes from './routes/notifications.routes.js';
 
 const app= express();
 
@@ -43,5 +45,6 @@ app.use('/api/', propertyRoutes);
 app.use('/api/', appointmentRoutes);
 app.use('/api/admin/', userRoutes);
 app.use('/api/', reviewRoutes);
+app.use('/api/admin/', notificationRoutes);
 
 export default app;

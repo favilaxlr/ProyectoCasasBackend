@@ -3,30 +3,15 @@ import Property from '../models/property.models.js';
 import Appointment from '../models/appointment.models.js';
 import { v2 as cloudinary } from 'cloudinary';
 
-// Crear nueva reseña (solo usuarios registrados con cita previa)
+// Crear nueva reseña (solo usuarios registrados)
 export const createReview = async (req, res) => {
     try {
-        const { propertyId, appointmentId, rating, subcategories, comment, recommendation } = req.body;
+        const { propertyId, rating, subcategories, comment, recommendation } = req.body;
         
         // Verificar que la propiedad existe
         const property = await Property.findById(propertyId);
         if (!property) {
             return res.status(404).json({ message: ['Propiedad no encontrada'] });
-        }
-
-        // Verificar que el usuario tuvo una cita confirmada
-        const appointment = await Appointment.findOne({
-            _id: appointmentId,
-            property: propertyId,
-            visitor: { $elemMatch: { email: req.user.email } }, // Asumiendo que el email coincide
-            status: 'completed',
-            appointmentDate: { $lt: new Date() } // Cita ya ocurrió
-        });
-
-        if (!appointment) {
-            return res.status(400).json({ 
-                message: ['Debes tener una cita completada en esta propiedad para reseñar'] 
-            });
         }
 
         // Verificar que no haya reseñado antes esta propiedad
@@ -38,14 +23,6 @@ export const createReview = async (req, res) => {
         if (existingReview) {
             return res.status(400).json({ 
                 message: ['Ya has reseñado esta propiedad'] 
-            });
-        }
-
-        // Verificar período de 30 días
-        const daysSinceAppointment = (new Date() - appointment.appointmentDate) / (1000 * 60 * 60 * 24);
-        if (daysSinceAppointment > 30) {
-            return res.status(400).json({ 
-                message: ['El período para reseñar ha expirado (30 días máximo)'] 
             });
         }
 
@@ -63,7 +40,6 @@ export const createReview = async (req, res) => {
         const newReview = new Review({
             property: propertyId,
             user: req.user.id,
-            appointment: appointmentId,
             rating,
             subcategories,
             comment,
@@ -260,5 +236,39 @@ const updatePropertyRating = async (propertyId) => {
         }
     } catch (error) {
         console.log('Error updating property rating:', error);
+    }
+};
+
+// Eliminar reseña (admin/co-admin)
+export const deleteReview = async (req, res) => {
+    try {
+        const review = await Review.findById(req.params.id);
+        
+        if (!review) {
+            return res.status(404).json({ message: ['Reseña no encontrada'] });
+        }
+
+        // Eliminar imágenes de Cloudinary si las tiene
+        if (review.images && review.images.length > 0) {
+            for (const image of review.images) {
+                if (image.publicId) {
+                    try {
+                        await cloudinary.uploader.destroy(image.publicId);
+                    } catch (error) {
+                        console.log('Error deleting image from cloudinary:', error);
+                    }
+                }
+            }
+        }
+
+        await Review.findByIdAndDelete(req.params.id);
+        
+        // Actualizar rating de la propiedad
+        await updatePropertyRating(review.property);
+        
+        res.json({ message: ['Reseña eliminada correctamente'] });
+    } catch (error) {
+        console.error('Error deleting review:', error);
+        res.status(500).json({ message: ['Error al eliminar la reseña'] });
     }
 };

@@ -5,7 +5,8 @@ import {
     getPendingReviews,
     moderateReview,
     toggleFeaturedReview,
-    voteHelpful
+    voteHelpful,
+    deleteReview
 } from '../controllers/reviews.controller.js';
 import { authRequired } from '../middlewares/validateToken.js';
 import { isAdmin } from '../middlewares/isAdmin.js';
@@ -25,6 +26,7 @@ router.post('/reviews/:id/helpful', authRequired, voteHelpful); // Votar reseña
 // Rutas para admin y co-admin
 router.get('/reviews/pending', authRequired, isAdminOrCoAdmin, getPendingReviews); // Ver reseñas pendientes
 router.put('/reviews/:id/moderate', authRequired, isAdminOrCoAdmin, moderateReview); // Moderar reseña
+router.delete('/reviews/:id', authRequired, isAdminOrCoAdmin, deleteReview); // Eliminar reseña
 
 // Rutas solo para admin
 router.put('/reviews/:id/featured', authRequired, isAdmin, toggleFeaturedReview); // Destacar reseña

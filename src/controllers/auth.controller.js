@@ -15,7 +15,7 @@ const roleUser = process.env.SETUP_ROLE_USER;
 
 //Funcion para registrar usuarios
 export const register = async (req, res)=>{
-    const { username, email, password} = req.body;
+    const { username, email, phone, password} = req.body;
     
     try {
         //Validamos que el email no se este registrado en la base de datos
@@ -38,6 +38,7 @@ export const register = async (req, res)=>{
         const newUser = new User({
             username,
             email,
+            phone,
             password: passwordHash,
             role: role._id 
         });
@@ -63,6 +64,7 @@ export const register = async (req, res)=>{
             id: userSaved._id,
             username: userSaved.username,
             email: userSaved.email,
+            phone: userSaved.phone,
             role: role.role
         });
     } catch (error) {
@@ -114,6 +116,7 @@ export const login = async (req, res)=>{
             id: userFound._id,
             username: userFound.username,
             email: userFound.email,
+            phone: userFound.phone,
             role: role
         })
     } catch (error){
@@ -151,6 +154,7 @@ export const profile = async (req, res)=>{
             id: userFound._id,
             username: userFound.username,
             email: userFound.email,
+            phone: userFound.phone,
         })
     
 }//Fin de profile
@@ -183,6 +187,7 @@ export const verifyToken = async (req, res)=>{
             id: userFound._id,
             username: userFound.username,
             email: userFound.email,
+            phone: userFound.phone,
             role: role
         }
 

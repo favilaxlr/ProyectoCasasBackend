@@ -91,18 +91,24 @@ export const uploadSingleToCloudinary = async (req, res, next) => {
                 return res.status(400).json({ message: ['Tipo de archivo no permitido'] });
             }
 
-            const base64Image = Buffer.from(req.file.buffer).toString('base64');
-            const dataUri = `data:${req.file.mimetype};base64,${base64Image}`;
-            
-            const uploadResponse = await cloudinary.v2.uploader.upload(dataUri, {
-                folder: 'properties'
-            });
-            
-            req.urlImage = uploadResponse.secure_url;
-            req.publicId = uploadResponse.public_id;
-            next();
+            try {
+                const base64Image = Buffer.from(req.file.buffer).toString('base64');
+                const dataUri = `data:${req.file.mimetype};base64,${base64Image}`;
+                
+                const uploadResponse = await cloudinary.v2.uploader.upload(dataUri, {
+                    folder: 'profile-images'
+                });
+                
+                req.urlImage = uploadResponse.secure_url;
+                req.publicId = uploadResponse.public_id;
+                next();
+            } catch (uploadError) {
+                console.error('Error subiendo a Cloudinary:', uploadError);
+                return res.status(500).json({ message: ['Error al subir la imagen a Cloudinary'] });
+            }
         });
     } catch (error) {
-        return res.status(400).json({ message: [error.message] });
+        console.error('Error en middleware uploadSingleToCloudinary:', error);
+        return res.status(500).json({ message: ['Error al procesar la imagen'] });
     }
 };

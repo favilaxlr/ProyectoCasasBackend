@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authRequired } from '../middlewares/validateToken.js';
 import { isAdmin } from '../middlewares/isAdmin.js';
 import { isAdminOrCoAdmin } from '../middlewares/isAdminOrCoAdmin.js';
+import { isNotCoAdmin } from '../middlewares/isNotCoAdmin.js';
 import { validateSchema } from '../middlewares/validateSchemas.js';
 
 import {
@@ -9,6 +10,7 @@ import {
     getAppointments,
     getAppointment,
     confirmAppointment,
+    confirmAppointmentBySMS,
     cancelAppointment,
     getAvailableSlots,
     getUserAppointments,
@@ -22,9 +24,10 @@ const router = Router();
 
 // Rutas públicas
 router.get('/appointments/available-slots', getAvailableSlots); // Horarios disponibles
+router.post('/appointments/confirm-sms', confirmAppointmentBySMS); // Confirmar por SMS
 
-// Rutas para usuarios registrados
-router.post('/appointments', authRequired, validateSchema(appointmentSchema), createAppointment); // Crear cita
+// Rutas para usuarios registrados (NO co-admin)
+router.post('/appointments', authRequired, isNotCoAdmin, validateSchema(appointmentSchema), createAppointment); // Crear cita
 router.get('/my-appointments', authRequired, getUserAppointments); // Mis citas
 
 // Rutas administrativas (requieren autenticación y ser admin o co-admin)

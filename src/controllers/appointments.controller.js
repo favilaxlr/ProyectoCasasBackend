@@ -1,15 +1,59 @@
 import Appointment from '../models/appointment.models.js';
 import Property from '../models/property.models.js';
+import User from '../models/user.models.js';
+import twilio from 'twilio';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+// Configurar Twilio solo si las credenciales están disponibles
+let client = null;
+if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID !== 'your_account_sid_here') {
+    try {
+        client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    } catch (error) {
+        console.error('Error configurando Twilio para citas:', error);
+    }
+}
 
 // Generar código de confirmación único
 const generateConfirmationCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 };
 
+// Función para enviar SMS de confirmación
+const sendConfirmationSMS = async (phone, confirmationCode, propertyTitle, appointmentDate, appointmentTime) => {
+    if (!client) {
+        console.log('Twilio no configurado - saltando SMS de confirmación');
+        return false;
+    }
+    
+    try {
+        const message = `Confirma tu cita para "${propertyTitle}" el ${appointmentDate} a las ${appointmentTime}. Responde "YES" para confirmar. Código: ${confirmationCode}`;
+        
+        await client.messages.create({
+            body: message,
+            from: process.env.TWILIO_PHONE_NUMBER,
+            to: phone
+        });
+        
+        return true;
+    } catch (error) {
+        console.error('Error enviando SMS:', error);
+        return false;
+    }
+};
+
 // Función para crear una cita (usuarios registrados)
 export const createAppointment = async (req, res) => {
     try {
         const { propertyId, appointmentDate, appointmentTime, notes } = req.body;
+
+        // Obtener información del usuario
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ message: ['Usuario no encontrado'] });
+        }
 
         // Verificar que la propiedad existe y está disponible
         const property = await Property.findById(propertyId);
@@ -78,21 +122,46 @@ export const createAppointment = async (req, res) => {
             property: propertyId,
             user: req.user.id,
             visitor: {
-                name: req.user.username,
-                phone: req.user.phone || '',
-                email: req.user.email
+                name: user.username,
+                phone: user.phone,
+                email: user.email
             },
             appointmentDate: appointmentDateTime,
             appointmentTime,
             timeSlot,
             confirmationCode,
-            notes
+            notes,
+            status: 'pending_sms_confirmation'
         });
 
         const savedAppointment = await newAppointment.save();
         
-        res.json(savedAppointment);
+        // Enviar SMS de confirmación
+        const smsSuccess = await sendConfirmationSMS(
+            user.phone,
+            confirmationCode,
+            property.title,
+            appointmentDate,
+            appointmentTime
+        );
+
+        if (!smsSuccess && client) {
+            // Si falla el SMS y Twilio está configurado, eliminar la cita
+            await Appointment.findByIdAndDelete(savedAppointment._id);
+            return res.status(500).json({ message: ['Error al enviar SMS de confirmación'] });
+        }
+        
+        const responseMessage = client ? 
+            'Cita creada. Se ha enviado un SMS de confirmación a tu teléfono.' :
+            'Cita creada exitosamente. (SMS deshabilitado - Twilio no configurado)';
+        
+        res.json({
+            message: responseMessage,
+            appointment: savedAppointment,
+            confirmationRequired: !!client
+        });
     } catch (error) {
+        console.error('Error creating appointment:', error);
         res.status(500).json({ message: ['Error al crear la cita'] });
     }
 };
@@ -148,6 +217,52 @@ export const getAppointment = async (req, res) => {
     }
 };
 
+// Función para confirmar cita por SMS
+export const confirmAppointmentBySMS = async (req, res) => {
+    try {
+        const { confirmationCode, response } = req.body;
+        
+        if (!confirmationCode || !response) {
+            return res.status(400).json({ message: ['Código de confirmación y respuesta son requeridos'] });
+        }
+
+        const appointment = await Appointment.findOne({ 
+            confirmationCode,
+            status: 'pending_sms_confirmation'
+        }).populate('property', 'title');
+        
+        if (!appointment) {
+            return res.status(404).json({ message: ['Cita no encontrada o ya procesada'] });
+        }
+
+        // Verificar si la respuesta es "YES" (case insensitive)
+        if (response.toLowerCase().trim() === 'yes') {
+            appointment.status = 'confirmed';
+            appointment.confirmedAt = new Date();
+            await appointment.save();
+            
+            res.json({ 
+                message: 'Cita confirmada exitosamente',
+                appointment,
+                confirmed: true
+            });
+        } else {
+            appointment.status = 'cancelled';
+            appointment.notes = (appointment.notes || '') + '\nCancelada por SMS: Respuesta negativa';
+            await appointment.save();
+            
+            res.json({ 
+                message: 'Cita cancelada',
+                appointment,
+                confirmed: false
+            });
+        }
+    } catch (error) {
+        console.error('Error confirming appointment by SMS:', error);
+        res.status(500).json({ message: ['Error al procesar confirmación por SMS'] });
+    }
+};
+
 // Función para confirmar una cita (admin)
 export const confirmAppointment = async (req, res) => {
     try {
@@ -159,6 +274,7 @@ export const confirmAppointment = async (req, res) => {
         }
 
         appointment.status = 'confirmed';
+        appointment.confirmedAt = new Date();
         await appointment.save();
 
         res.json({ message: 'Cita confirmada exitosamente', appointment });

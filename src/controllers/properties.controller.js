@@ -1,10 +1,14 @@
 import Property from '../models/property.models.js';
 import { v2 as cloudinary } from 'cloudinary';
+import { sendMassNotification } from '../services/notificationService.js';
 
-// Función para obtener todas las propiedades (admin)
+// Función para obtener todas las propiedades (admin / co-admin)
 export const getProperties = async (req, res) => {
     try {
-        const properties = await Property.find({ createdBy: req.user.id });
+        // Admin y co-admin deben ver TODAS las propiedades, sin importar quién las creó
+        const properties = await Property.find()
+            .populate('createdBy', 'username email')
+            .populate('lastModifiedBy', 'username email'); // Traer info del creador y modificador
         res.json(properties);
     } catch (error) {
         res.status(500)
@@ -15,7 +19,9 @@ export const getProperties = async (req, res) => {
 // Función para obtener todas las propiedades públicas (para visitantes)
 export const getAllProperties = async (req, res) => {
     try {
-        const properties = await Property.find({ 'availability.isAvailable': true });
+        const properties = await Property.find({ 'availability.isAvailable': true })
+            .populate('createdBy', 'username email')
+            .populate('lastModifiedBy', 'username email'); // Traer info del creador y modificador
         res.json(properties);
     } catch (error) {
         res.status(500)
@@ -95,6 +101,22 @@ export const createProperty = async (req, res) => {
         });
 
         const savedProperty = await newProperty.save();
+        
+        // ENVÍO AUTOMÁTICO DE NOTIFICACIONES MASIVAS
+        try {
+            // Solo enviar si Twilio está configurado
+            if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID !== 'your_account_sid_here') {
+                console.log('Iniciando envío de notificaciones masivas...');
+                const notificationResult = await sendMassNotification(savedProperty, req.user.id);
+                console.log('Notificaciones enviadas:', notificationResult.stats);
+            } else {
+                console.log('Twilio no configurado - saltando notificaciones SMS');
+            }
+        } catch (notificationError) {
+            console.error('Error en notificaciones masivas:', notificationError);
+            // No fallar la creación de propiedad por error en notificaciones
+        }
+        
         res.json(savedProperty);
     } catch (error) {
         console.error('Error al crear propiedad:', error);
@@ -111,7 +133,9 @@ export const createProperty = async (req, res) => {
 // Función para obtener una propiedad por ID
 export const getProperty = async (req, res) => {
     try {
-        const property = await Property.findById(req.params.id);
+        const property = await Property.findById(req.params.id)
+            .populate('createdBy', 'username email')
+            .populate('lastModifiedBy', 'username email'); // Traer info del creador y modificador
         if (!property) {
             return res.status(404)
                 .json({ message: ['Propiedad no encontrada'] });
@@ -229,14 +253,17 @@ export const updateProperty = async (req, res) => {
                 ? amenities
                 : (typeof amenities === 'string' ? amenities.split(',').map(s=>s.trim()).filter(Boolean) : []),
             availability,
-            contact
+            contact,
+            lastModifiedBy: req.user.id  // Guardar quién modificó
         };
 
         const updatedProperty = await Property.findByIdAndUpdate(
             req.params.id,
             updateData,
             { new: true }
-        );
+        )
+        .populate('createdBy', 'username email')
+        .populate('lastModifiedBy', 'username email');
 
         res.json(updatedProperty);
     } catch (error) {

@@ -39,11 +39,10 @@ const propertySchema = new mongoose.Schema(
         
         // Precios
         price: {
-            rent: {
+            sale: {
                 type: Number,
                 required: true
             },
-            deposit: Number,
             currency: {
                 type: String,
                 default: "USD"
@@ -143,6 +142,12 @@ const propertySchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
             required: true
+        },
+        
+        // Última modificación
+        lastModifiedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
         },
         
         // Rating promedio de reseñas
