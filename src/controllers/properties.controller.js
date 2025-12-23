@@ -70,7 +70,8 @@ export const createProperty = async (req, res) => {
             details,
             amenities,
             availability,
-            contact
+            contact,
+            businessMode
         } = processedBody;
 
         // Procesar imágenes (hasta 10 máximo)
@@ -97,6 +98,7 @@ export const createProperty = async (req, res) => {
                 : (typeof amenities === 'string' ? amenities.split(',').map(s=>s.trim()).filter(Boolean) : []),
             availability,
             contact,
+            businessMode,
             createdBy: req.user.id
         });
 
@@ -224,14 +226,20 @@ export const updateProperty = async (req, res) => {
             details,
             amenities,
             availability,
-            contact
+            contact,
+            businessMode
         } = nestedBody;
 
         // Intentar convertir algunos campos simples a números/booleanos si vienen como strings
         const tryNum = (v) => (typeof v === 'string' && v.trim() !== '' ? Number(v) : v);
         if (price) {
+            if (price.sale !== undefined) price.sale = tryNum(price.sale);
             if (price.rent !== undefined) price.rent = tryNum(price.rent);
             if (price.deposit !== undefined) price.deposit = tryNum(price.deposit);
+            if (price.monthlyRent !== undefined) price.monthlyRent = tryNum(price.monthlyRent);
+            if (price.taxes !== undefined) price.taxes = tryNum(price.taxes);
+            if (price.leaseDuration !== undefined) price.leaseDuration = tryNum(price.leaseDuration);
+            if (price.maintenance !== undefined) price.maintenance = tryNum(price.maintenance);
         }
         if (details) {
             if (details.bedrooms !== undefined) details.bedrooms = tryNum(details.bedrooms);
@@ -254,6 +262,7 @@ export const updateProperty = async (req, res) => {
                 : (typeof amenities === 'string' ? amenities.split(',').map(s=>s.trim()).filter(Boolean) : []),
             availability,
             contact,
+            businessMode,
             lastModifiedBy: req.user.id  // Guardar quién modificó
         };
 

@@ -33,6 +33,7 @@ export const initializeSetup = async () =>{
         const setupAdminName = process.env.SETUP_ADMIN_USERNAME;
         const setupPwd = process.env.SETUP_ADMIN_PWD;
         const setupEmail = process.env.SETUP_ADMIN_EMAIL;
+        const setupPhone = process.env.SETUP_ADMIN_PHONE || '+1234567890'; // Teléfono por defecto si no está en .env
 
         //Buscamos si existe un usuario admin
         const userAdmin = await User.findOne({username: setupAdminName});
@@ -44,6 +45,7 @@ export const initializeSetup = async () =>{
             const newUserAdmin = new User({
                 username: setupAdminName,
                 email: setupEmail,
+                phone: setupPhone,
                 password: passwordAdmin,
                 role: roleAdminDB._id
             });
