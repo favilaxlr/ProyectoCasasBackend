@@ -34,16 +34,47 @@ export const propertySchema = z.object({
         }).optional()
     }),
     
+    businessMode: z.enum(['sale', 'rent', 'both'], {
+        required_error: "La modalidad de negocio es requerida"
+    }).optional(),
+    
     price: z.object({
+        // Campos de venta
         sale: z.preprocess(
             (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
             z.number({
-                required_error: "El precio de venta es requerido",
                 invalid_type_error: "El precio debe ser un número"
-            }).positive("El precio debe ser positivo")
+            }).positive("El precio debe ser positivo").optional()
         ),
+        taxes: z.preprocess(
+            (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+            z.number().positive().optional()
+        ),
+        deedConditions: z.string().optional(),
+        
+        // Campos de renta
+        monthlyRent: z.preprocess(
+            (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+            z.number({
+                invalid_type_error: "La renta debe ser un número"
+            }).positive("La renta debe ser positiva").optional()
+        ),
+        deposit: z.preprocess(
+            (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+            z.number().min(0).optional()
+        ),
+        leaseDuration: z.preprocess(
+            (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+            z.number().positive().optional()
+        ),
+        maintenance: z.preprocess(
+            (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+            z.number().min(0).optional()
+        ),
+        leaseConditions: z.string().optional(),
+        
         currency: z.string().default("USD")
-    }),
+    }).optional(),
     
     details: z.object({
         bedrooms: z.preprocess(

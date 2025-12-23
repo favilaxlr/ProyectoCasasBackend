@@ -37,12 +37,27 @@ const propertySchema = new mongoose.Schema(
             }
         },
         
+        // Modalidad de negocio
+        businessMode: {
+            type: String,
+            enum: ['sale', 'rent', 'both'],
+            default: 'sale'
+        },
+        
         // Precios
         price: {
-            sale: {
-                type: Number,
-                required: true
-            },
+            // Campos de venta
+            sale: Number,
+            taxes: Number,
+            deedConditions: String,
+            
+            // Campos de renta
+            monthlyRent: Number,
+            deposit: Number,
+            leaseDuration: Number,
+            maintenance: Number,
+            leaseConditions: String,
+            
             currency: {
                 type: String,
                 default: "USD"
