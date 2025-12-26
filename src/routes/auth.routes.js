@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { login, logout, profile, register, verifyToken } from '../controllers/auth.controller.js';
+import { login, logout, profile, register, verifyToken, verifyUserCode, resendVerificationCode } from '../controllers/auth.controller.js';
 import { authRequired } from '../middlewares/validateToken.js';
 
 //Importamos el validatorSchema
@@ -24,5 +24,11 @@ router.post('/logout', logout);
 
 //Ruta para el perfil del usuario
 router.get('/profile', authRequired, profile);
+
+//Ruta para verificar código de verificación
+router.post('/verify-code', verifyUserCode);
+
+//Ruta para reenviar código de verificación
+router.post('/resend-code', resendVerificationCode);
 
 export default router;

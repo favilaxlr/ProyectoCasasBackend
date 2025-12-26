@@ -6,6 +6,7 @@ import { createAccessToken } from '../libs/jwt.js';
 import jwt from 'jsonwebtoken';
 import { TOKEN_SECRET } from '../config.js';
 import dotenv from 'dotenv';
+import { sendVerificationCode, verifyCode } from '../services/verificationService.js';
 
 //Configuramos las variables de entorno
 dotenv.config()
@@ -40,6 +41,10 @@ export const register = async (req, res)=>{
             role: role._id 
         });
         const userSaved = await newUser.save();
+        
+        //Enviar código de verificación por SMS y email
+        await sendVerificationCode(userSaved);
+        
         //Generamos el token de inicio de sesion
         const token = await createAccessToken({id: userSaved._id});
 
@@ -62,7 +67,9 @@ export const register = async (req, res)=>{
             username: userSaved.username,
             email: userSaved.email,
             phone: userSaved.phone,
-            role: role.role
+            role: role.role,
+            isEmailVerified: userSaved.isEmailVerified,
+            isPhoneVerified: userSaved.isPhoneVerified
         });
     } catch (error) {
             res.status(500)
@@ -87,6 +94,23 @@ export const login = async (req, res)=>{
         if(!isMatch)
             return res.status(400)
                         .json({message: ["Password no coincide"]})
+        
+        //Obtener el rol del usuario para verificar si es admin o co-admin
+        const role = await Role.findById(userFound.role);
+        if (!role) //No se encuentra el rol del usuario
+            return res.status(400) //Retornamos error en el login
+                        .json({message: ["El rol para el usuario no está definido"]})
+        
+        //Verificar que el usuario haya verificado su email y teléfono
+        //EXCEPTO si es admin o co-admin
+        const isAdminOrCoAdmin = role.role === 'admin' || role.role === 'co-admin';
+        if(!isAdminOrCoAdmin && (!userFound.isEmailVerified || !userFound.isPhoneVerified))
+            return res.status(403)
+                        .json({
+                            message: ["Debes verificar tu email y número de teléfono antes de iniciar sesión"],
+                            needsVerification: true
+                        })
+        
         //Si se encuentra en la bd y el password coincide
         //Generamos el token de inicio de sesion
         const token = await createAccessToken({id: userFound._id});
@@ -103,11 +127,6 @@ export const login = async (req, res)=>{
                 secure: true, //para activar https en deployment
             });
         } //Fin de if(process.env.ENVIROMENT)
-
-        const role = await Role.findById(userFound.role);
-        if (!role) //Nose encuentra el rol del usuario
-            return res.status(400) //Retornamos error en el login
-                        .json({message: ["El rol para el usuaro no esta definido"]})
 
         res.json({
             id: userFound._id,
@@ -192,3 +211,58 @@ export const verifyToken = async (req, res)=>{
 
     }); //Fin de jwt.verifyToken
 }//Fin de verifyToken
+
+//Función para verificar el código de verificación
+export const verifyUserCode = async (req, res) => {
+    const { email, code } = req.body;
+    
+    try {
+        //Buscar el usuario por email
+        const user = await User.findOne({ email });
+        if (!user)
+            return res.status(404)
+                        .json({ message: ['Usuario no encontrado'] });
+
+        //Verificar el código
+        const result = await verifyCode(user, code);
+        
+        if (!result.success) {
+            return res.status(400)
+                        .json({ message: [result.message] });
+        }
+
+        res.json({
+            message: 'Verificación exitosa',
+            isEmailVerified: user.isEmailVerified,
+            isPhoneVerified: user.isPhoneVerified
+        });
+    } catch (error) {
+        res.status(500)
+            .json({ message: ['Error al verificar el código'] });
+    }
+}//Fin de verifyUserCode
+
+//Función para reenviar código de verificación
+export const resendVerificationCode = async (req, res) => {
+    const { email } = req.body;
+    
+    try {
+        const user = await User.findOne({ email });
+        if (!user)
+            return res.status(404)
+                        .json({ message: ['Usuario no encontrado'] });
+
+        //Si ya está verificado
+        if (user.isEmailVerified && user.isPhoneVerified)
+            return res.status(400)
+                        .json({ message: ['El usuario ya está verificado'] });
+
+        //Enviar nuevo código
+        await sendVerificationCode(user);
+        
+        res.json({ message: 'Código de verificación reenviado' });
+    } catch (error) {
+        res.status(500)
+            .json({ message: ['Error al reenviar el código'] });
+    }
+}//Fin de resendVerificationCode

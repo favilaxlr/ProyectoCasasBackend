@@ -89,13 +89,15 @@ export const sendMassNotification = async (property, createdBy) => {
     let notification;
     
     try {
-        // 1. Obtener todos los usuarios activos con teléfono válido
+        // 1. Obtener todos los usuarios VERIFICADOS con teléfono válido
         const users = await User.find({
-            phone: { $exists: true, $ne: '' }
+            phone: { $exists: true, $ne: '' },
+            isEmailVerified: true,
+            isPhoneVerified: true
         }).select('phone username');
 
         if (users.length === 0) {
-            throw new Error('No hay usuarios registrados para notificar');
+            throw new Error('No hay usuarios verificados para notificar');
         }
 
         // 2. Generar mensaje

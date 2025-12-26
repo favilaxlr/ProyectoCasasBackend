@@ -136,7 +136,7 @@ export const createAppointment = async (req, res) => {
 
         const savedAppointment = await newAppointment.save();
         
-        // Enviar SMS de confirmación
+        // Intentar enviar SMS de confirmación (no bloqueante)
         const smsSuccess = await sendConfirmationSMS(
             user.phone,
             confirmationCode,
@@ -145,20 +145,23 @@ export const createAppointment = async (req, res) => {
             appointmentTime
         );
 
-        if (!smsSuccess && client) {
-            // Si falla el SMS y Twilio está configurado, eliminar la cita
-            await Appointment.findByIdAndDelete(savedAppointment._id);
-            return res.status(500).json({ message: ['Error al enviar SMS de confirmación'] });
+        // Actualizar estado según si se pudo enviar SMS
+        if (!smsSuccess) {
+            // Si no se pudo enviar SMS, marcar como confirmada directamente
+            savedAppointment.status = 'confirmed';
+            await savedAppointment.save();
+            console.log(`⚠️ SMS no enviado - Cita ${savedAppointment._id} confirmada automáticamente`);
         }
         
-        const responseMessage = client ? 
+        const responseMessage = smsSuccess ? 
             'Cita creada. Se ha enviado un SMS de confirmación a tu teléfono.' :
-            'Cita creada exitosamente. (SMS deshabilitado - Twilio no configurado)';
+            'Cita creada y confirmada exitosamente. (SMS de confirmación no disponible para tu región)';
         
         res.json({
             message: responseMessage,
             appointment: savedAppointment,
-            confirmationRequired: !!client
+            confirmationRequired: smsSuccess,
+            smsNotification: smsSuccess
         });
     } catch (error) {
         console.error('Error creating appointment:', error);

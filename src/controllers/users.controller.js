@@ -49,9 +49,18 @@ export const changeUserRole = async (req, res) => {
             return res.status(403).json({ message: ['No puedes cambiar tu propio rol'] });
         }
         
+        // Preparar la actualización
+        const updateData = { role: roleId };
+        
+        // Si el nuevo rol es admin o co-admin, marcar como verificado automáticamente
+        if (role.role === 'admin' || role.role === 'co-admin') {
+            updateData.isEmailVerified = true;
+            updateData.isPhoneVerified = true;
+        }
+        
         const user = await User.findByIdAndUpdate(
             req.params.id,
-            { role: roleId },
+            updateData,
             { new: true }
         ).populate('role', 'role').select('-password');
         

@@ -36,7 +36,26 @@ const userSchema = mongoose.Schema({
             type: String,
             default: ''
         }
+    },
+    // Campos de verificación
+    isEmailVerified: {
+        type: Boolean,
+        default: false
+    },
+    isPhoneVerified: {
+        type: Boolean,
+        default: false
+    },
+    verificationCode: {
+        type: String,
+        default: null
+    },
+    verificationCodeExpiry: {
+        type: Date,
+        default: null
     }
+}, {
+    timestamps: true
 });
 
 // Método para comparar contraseñas

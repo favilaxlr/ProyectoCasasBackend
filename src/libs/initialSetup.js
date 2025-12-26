@@ -46,7 +46,9 @@ export const initializeSetup = async () =>{
                 email: setupEmail,
                 phone: setupPhone,
                 password: setupPwd, // Sin hashear, el modelo lo hará automáticamente
-                role: roleAdminDB._id
+                role: roleAdminDB._id,
+                isEmailVerified: true, // Admin pre-verificado
+                isPhoneVerified: true  // Admin pre-verificado
             });
             await newUserAdmin.save();
             console.log("Roles y usuarios inicializados")

@@ -12,11 +12,11 @@ export const registerSchema = z.object({
                                                                 :'El email es invalido'
             }),
     phone: z.string('Teléfono requerido')
-        .min(10, {
-            error: 'El teléfono debe tener al menos 10 dígitos'
+        .min(1, {
+            error: 'El teléfono es requerido'
         })
-        .regex(/^[+]?[0-9\s\-\(\)]+$/, {
-            message: 'El teléfono debe contener solo números, espacios, guiones, paréntesis y el signo +'
+        .regex(/^\+[1-9]\d{1,14}$/, {
+            message: 'El teléfono debe estar en formato internacional (+[código][número])'
         }),
     password: z.string('Password requerido')
         .min(6, {
