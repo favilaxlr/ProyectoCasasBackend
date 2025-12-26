@@ -11,7 +11,7 @@ import {
 import { authRequired } from '../middlewares/validateToken.js';
 import { isAdmin } from '../middlewares/isAdmin.js';
 import { isAdminOrCoAdmin } from '../middlewares/isAdminOrCoAdmin.js';
-import { uploadToCloudinary } from '../middlewares/uploadImage.js';
+import { uploadOptionalToCloudinary } from '../middlewares/uploadImage.js';
 import { validateSchema } from '../middlewares/validateSchemas.js';
 
 const router = Router();
@@ -20,7 +20,7 @@ const router = Router();
 router.get('/properties/:propertyId/reviews', getPropertyReviews); // Ver reseñas de una propiedad
 
 // Rutas para usuarios registrados
-router.post('/reviews', authRequired, uploadToCloudinary, createReview); // Crear reseña
+router.post('/reviews', authRequired, uploadOptionalToCloudinary, createReview); // Crear reseña
 router.post('/reviews/:id/helpful', authRequired, voteHelpful); // Votar reseña como útil
 
 // Rutas para admin y co-admin

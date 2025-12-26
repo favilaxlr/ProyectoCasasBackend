@@ -16,11 +16,11 @@ const reviewSchema = new mongoose.Schema(
             required: true
         },
         
-        // Cita asociada (para validar elegibilidad)
+        // Cita asociada (opcional - para validar elegibilidad)
         appointment: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Appointment',
-            required: true
+            required: false
         },
         
         // Calificación principal

@@ -70,6 +70,60 @@ export const uploadToCloudinary = async (req, res, next) => {
     }
 };
 
+// Middleware para imágenes opcionales (para reseñas)
+export const uploadOptionalToCloudinary = async (req, res, next) => {
+    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    
+    try {
+        uploadMultiple(req, res, async (err) => {
+            if (err) {
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(400).json({ message: ['Tamaño del archivo excedido'] });
+                }
+                if (err.code === 'LIMIT_FILE_COUNT') {
+                    return res.status(400).json({ message: ['Máximo 10 imágenes permitidas'] });
+                }
+                return res.status(400).json({ message: [err.message] });
+            }
+
+            // Si no hay archivos, continuar sin error (opcional)
+            if (!req.files || req.files.length === 0) {
+                req.files = [];
+                return next();
+            }
+
+            // Validar tipos de archivo
+            for (const file of req.files) {
+                if (!allowedMimes.includes(file.mimetype)) {
+                    return res.status(400).json({ 
+                        message: [`Tipo de archivo no permitido: ${file.mimetype}`] 
+                    });
+                }
+            }
+
+            // Subir todas las imágenes a Cloudinary
+            const uploadPromises = req.files.map(async (file) => {
+                const base64Image = Buffer.from(file.buffer).toString('base64');
+                const dataUri = `data:${file.mimetype};base64,${base64Image}`;
+                
+                const uploadResponse = await cloudinary.v2.uploader.upload(dataUri, {
+                    folder: 'reviews' // Organizar en carpeta de reviews
+                });
+                
+                return {
+                    path: uploadResponse.secure_url,
+                    filename: uploadResponse.public_id
+                };
+            });
+
+            req.files = await Promise.all(uploadPromises);
+            next();
+        });
+    } catch (error) {
+        return res.status(400).json({ message: [error.message] });
+    }
+};
+
 // Middleware para imagen única (compatibilidad)
 export const uploadSingleToCloudinary = async (req, res, next) => {
     const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];

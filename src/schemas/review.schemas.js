@@ -5,13 +5,14 @@ export const reviewSchema = z.object({
         required_error: "El ID de la propiedad es requerido"
     }),
     
-    appointmentId: z.string({
-        required_error: "El ID de la cita es requerido"
-    }),
+    appointmentId: z.string().optional(),
     
-    rating: z.number({
-        required_error: "La calificación es requerida"
-    }).min(1, "La calificación mínima es 1").max(5, "La calificación máxima es 5"),
+    rating: z.union([
+        z.number(),
+        z.string().transform((val) => parseInt(val))
+    ]).refine((val) => val >= 1 && val <= 5, {
+        message: "La calificación debe estar entre 1 y 5"
+    }),
     
     subcategories: z.object({
         location: z.number().min(1).max(5).optional(),
@@ -22,10 +23,13 @@ export const reviewSchema = z.object({
     
     comment: z.string({
         required_error: "El comentario es requerido"
-    }).min(50, "El comentario debe tener al menos 50 caracteres")
+    }).min(10, "El comentario debe tener al menos 10 caracteres")
       .max(1000, "El comentario no puede exceder 1000 caracteres"),
     
-    recommendation: z.boolean().optional()
+    recommendation: z.union([
+        z.boolean(),
+        z.string().transform((val) => val === 'true')
+    ]).optional()
 });
 
 export const moderateReviewSchema = z.object({

@@ -24,9 +24,6 @@ export const register = async (req, res)=>{
             return res.status(400)//Retornamos un error en el registro
                         .json({message: ['El email ya esta registrado']});
 
-        //Encriptar la contraseña
-        const passwordHash = await bcrypt.hash(password,10);
-
         //Obtenemos el rol por defecto para usuarios
         //Y lo agregamos al usuario para guardarlo en la db con ese rol
         const role = await Role.findOne({role: roleUser});
@@ -34,12 +31,12 @@ export const register = async (req, res)=>{
         return res.status(400) //Retornamos error en el registro
                     .json({message: ["El rol para usuarios no esta definido"]})
 
-        //Crear un nuevo Usuario
+        //Crear un nuevo Usuario (el password se hasheará automáticamente por el pre-save hook)
         const newUser = new User({
             username,
             email,
             phone,
-            password: passwordHash,
+            password, // Sin hashear, el modelo lo hará automáticamente
             role: role._id 
         });
         const userSaved = await newUser.save();

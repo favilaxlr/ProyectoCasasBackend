@@ -41,12 +41,11 @@ export const initializeSetup = async () =>{
             //Se crea un usuario tomando las variables de ambiente
             console.log("Creando un usuario admin");
             const roleAdminDB= await Role.findOne({role: roleAdmin});
-            const passwordAdmin = await bcryptjs.hash(setupPwd, 10);
             const newUserAdmin = new User({
                 username: setupAdminName,
                 email: setupEmail,
                 phone: setupPhone,
-                password: passwordAdmin,
+                password: setupPwd, // Sin hashear, el modelo lo hará automáticamente
                 role: roleAdminDB._id
             });
             await newUserAdmin.save();

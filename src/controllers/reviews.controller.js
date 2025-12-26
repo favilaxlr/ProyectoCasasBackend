@@ -44,12 +44,21 @@ export const createReview = async (req, res) => {
             subcategories,
             comment,
             images,
-            recommendation: recommendation === 'true'
+            recommendation: recommendation === 'true' || recommendation === true,
+            status: 'approved' // Aprobar automáticamente (puedes cambiar a 'pending' si quieres moderación)
         });
 
         const savedReview = await newReview.save();
         res.json(savedReview);
     } catch (error) {
+        console.error('Error al crear reseña:', error);
+        
+        // Si es un error de validación de Mongoose
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(err => err.message);
+            return res.status(400).json({ message: messages });
+        }
+        
         res.status(500).json({ message: ['Error al crear reseña'] });
     }
 };
@@ -64,7 +73,7 @@ export const getPropertyReviews = async (req, res) => {
             property: propertyId,
             status: 'approved'
         })
-        .populate('user', 'username')
+        .populate('user', 'username profileImage')
         .sort({ featured: -1, [sortBy]: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
@@ -99,6 +108,7 @@ export const getPropertyReviews = async (req, res) => {
             stats: stats[0] || { averageRating: 0, totalReviews: 0 }
         });
     } catch (error) {
+        console.error('Error al obtener reseñas:', error);
         res.status(500).json({ message: ['Error al obtener reseñas'] });
     }
 };
