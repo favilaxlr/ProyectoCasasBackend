@@ -20,8 +20,9 @@ async function startServer() {
         });
 
         // Iniciar servidor solo después de conectar a MongoDB
-        app.listen(4000, () => {
-            console.log("Servidor corriendo en el puerto 4000");
+        const PORT = process.env.PORT || 4000;
+        app.listen(PORT, () => {
+            console.log(`Servidor corriendo en el puerto ${PORT}`);
         });
     } catch (error) {
         console.error("Error al iniciar el servidor:", error);

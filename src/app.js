@@ -47,4 +47,14 @@ app.use('/api/admin/', userRoutes);
 app.use('/api/', reviewRoutes);
 app.use('/api/admin/', notificationRoutes);
 
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'OK',
+        message: 'Server is running',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
+});
+
 export default app;

@@ -4,6 +4,7 @@
   "description": "Sistema Web para Productos",
   "main": "index.js",
   "scripts": {
+    "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "setup": "node src/libs/initialSetup.js",
     "geocode": "node geocode-properties.js",
