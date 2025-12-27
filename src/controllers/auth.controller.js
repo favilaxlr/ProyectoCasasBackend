@@ -19,19 +19,36 @@ export const register = async (req, res)=>{
     const { username, email, phone, password} = req.body;
     
     try {
+        console.log('📝 Intento de registro:', { username, email, phone: phone ? 'Presente' : 'Ausente' });
+        
         //Validamos que el email no se este registrado en la base de datos
         const userFound = await User.findOne({email});
-        if(userFound) //Ya esta registrado en la bd
-            return res.status(400)//Retornamos un error en el registro
-                        .json({message: ['El email ya esta registrado']});
+        if(userFound) { //Ya esta registrado en la bd
+            console.log('⚠️ Email ya registrado:', email);
+            // Si ya está verificado, sugerir login
+            if (userFound.isEmailVerified && userFound.isPhoneVerified) {
+                console.log('✅ Usuario ya verificado');
+                return res.status(400)
+                            .json({message: ['Este email ya está registrado. Por favor inicia sesión.']});
+            } else {
+                // Si no está verificado, sugerir verificación
+                console.log('⚠️ Usuario no verificado');
+                return res.status(400)
+                            .json({message: ['Este email ya está registrado pero no verificado. Por favor verifica tu cuenta.'], needsVerification: true, email: userFound.email});
+            }
+        }
 
         //Obtenemos el rol por defecto para usuarios
         //Y lo agregamos al usuario para guardarlo en la db con ese rol
         const role = await Role.findOne({role: roleUser});
-        if(!role) //No se encuentra el rol de usuarios inicializado
-        return res.status(400) //Retornamos error en el registro
-                    .json({message: ["El rol para usuarios no esta definido"]})
+        if(!role) { //No se encuentra el rol de usuarios inicializado
+            console.log('❌ Rol de usuario no definido');
+            return res.status(400) //Retornamos error en el registro
+                        .json({message: ["El rol para usuarios no esta definido"]});
+        }
 
+        console.log('✅ Creando nuevo usuario...');
+        
         //Crear un nuevo Usuario (el password se hasheará automáticamente por el pre-save hook)
         const newUser = new User({
             username,
@@ -42,38 +59,28 @@ export const register = async (req, res)=>{
         });
         const userSaved = await newUser.save();
         
+        console.log('✅ Usuario guardado exitosamente:', userSaved.username);
+        console.log('📨 Enviando código de verificación...');
+        
         //Enviar código de verificación por SMS y email
         await sendVerificationCode(userSaved);
         
-        //Generamos el token de inicio de sesion
-        const token = await createAccessToken({id: userSaved._id});
-
-        //Verificamos si el token de inicio de sesion lo generamos para el entorno local
-        //de desarrollo, o lo generamos para el servidor en la nube
-        if (process.env.ENVIROMENT=='local'){
-            res.cookie('token', token, {
-                sameSite: 'lax', //Para indicar que el back y fron son locales para desarrollo
-            });
-        } else { //El back y front se encuentran en distintos servidores remotos
-            res.cookie('token', token, {
-                sameSite: 'none', //Para peticiones remotas
-                secure: true, //Para activar https en deployment
-            });
-
-        } //Fin de if(process.env.ENVIROMENT)
-
+        console.log('✅ Registro completado');
+        
+        // NO generar token hasta que el usuario verifique su cuenta
+        // El usuario debe ir a /verify-code primero
+        
         res.json({
-            id: userSaved._id,
-            username: userSaved.username,
+            message: 'Registro exitoso. Por favor verifica tu cuenta con el código enviado a tu email y teléfono.',
             email: userSaved.email,
             phone: userSaved.phone,
-            role: role.role,
-            isEmailVerified: userSaved.isEmailVerified,
-            isPhoneVerified: userSaved.isPhoneVerified
+            requiresVerification: true
         });
     } catch (error) {
-            res.status(500)
-                .json({message: ["Error al registrar"]});
+        console.error('❌ Error en registro:', error);
+        console.error('📋 Stack:', error.stack);
+        res.status(500)
+            .json({message: ["Error al registrar"]});
     }
 }//Fin de register
 
@@ -133,6 +140,7 @@ export const login = async (req, res)=>{
             username: userFound.username,
             email: userFound.email,
             phone: userFound.phone,
+            profileImage: userFound.profileImage,
             role: role
         })
     } catch (error){
@@ -204,6 +212,7 @@ export const verifyToken = async (req, res)=>{
             username: userFound.username,
             email: userFound.email,
             phone: userFound.phone,
+            profileImage: userFound.profileImage,
             role: role
         }
 
@@ -217,26 +226,101 @@ export const verifyUserCode = async (req, res) => {
     const { email, code } = req.body;
     
     try {
+        console.log('🔍 Intentando verificar código para:', email);
+        console.log('📝 Código recibido:', code);
+        
         //Buscar el usuario por email
         const user = await User.findOne({ email });
-        if (!user)
+        if (!user) {
+            console.log('❌ Usuario no encontrado:', email);
             return res.status(404)
                         .json({ message: ['Usuario no encontrado'] });
+        }
+
+        console.log('✅ Usuario encontrado:', user.username);
+        console.log('📋 Estado de verificación:', {
+            isEmailVerified: user.isEmailVerified,
+            isPhoneVerified: user.isPhoneVerified,
+            hasCode: !!user.verificationCode,
+            codeExpiry: user.verificationCodeExpiry
+        });
+
+        // Si el usuario ya está verificado, autenticarlo directamente
+        if (user.isEmailVerified && user.isPhoneVerified) {
+            console.log('✅ Usuario ya verificado, autenticando directamente...');
+            const role = await Role.findById(user.role);
+            const token = await createAccessToken({id: user._id});
+
+            if (process.env.ENVIROMENT=='local'){
+                res.cookie('token', token, {
+                    sameSite: 'lax',
+                });
+            } else {
+                res.cookie('token', token, {
+                    sameSite: 'none',
+                    secure: true,
+                });
+            }
+
+            return res.json({
+                message: 'Ya estás verificado. Bienvenido de nuevo',
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                phone: user.phone,
+                profileImage: user.profileImage,
+                role: role.role,
+                isEmailVerified: user.isEmailVerified,
+                isPhoneVerified: user.isPhoneVerified
+            });
+        }
 
         //Verificar el código
+        console.log('🔐 Verificando código...');
         const result = await verifyCode(user, code);
+        console.log('📊 Resultado de verificación:', result);
         
         if (!result.success) {
+            console.log('❌ Código inválido o expirado');
             return res.status(400)
                         .json({ message: [result.message] });
         }
 
+        console.log('✅ Código válido, generando token...');
+        
+        // Ahora SÍ generar el token después de verificar
+        const role = await Role.findById(user.role);
+        const token = await createAccessToken({id: user._id});
+
+        //Verificamos si el token de inicio de sesion lo generamos para el entorno local
+        //de desarrollo, o lo generamos para el servidor en la nube
+        if (process.env.ENVIROMENT=='local'){
+            res.cookie('token', token, {
+                sameSite: 'lax',
+            });
+        } else {
+            res.cookie('token', token, {
+                sameSite: 'none',
+                secure: true,
+            });
+        }
+
+        console.log('✅ Verificación completada exitosamente');
+
         res.json({
             message: 'Verificación exitosa',
+            id: user._id,
+            username: user.username,
+            email: user.email,
+            phone: user.phone,
+            profileImage: user.profileImage,
+            role: role.role,
             isEmailVerified: user.isEmailVerified,
             isPhoneVerified: user.isPhoneVerified
         });
     } catch (error) {
+        console.error('❌ Error en verifyUserCode:', error);
+        console.error('📋 Stack:', error.stack);
         res.status(500)
             .json({ message: ['Error al verificar el código'] });
     }

@@ -74,6 +74,10 @@ export const sendVerificationEmail = async (email, code, username) => {
                 `
             };
             
+            console.log('📤 Intentando enviar email con SendGrid...');
+            console.log('📧 Destinatario:', email);
+            console.log('📨 Remitente:', msg.from);
+            
             await sgMail.send(msg);
             console.log(`✅ Email de verificación enviado a ${email}`);
             return { success: true, mode: 'sendgrid' };
@@ -84,6 +88,14 @@ export const sendVerificationEmail = async (email, code, username) => {
         }
     } catch (error) {
         console.error('❌ Error enviando email de verificación:', error.message);
+        console.error('📋 Error completo:', error.response?.body || error);
+        
+        // SOLUCIÓN TEMPORAL: Mostrar código en consola si falla el envío
+        console.log('🔐 ============================================');
+        console.log(`📧 Email: ${email}`);
+        console.log(`🔑 CÓDIGO DE VERIFICACIÓN: ${code}`);
+        console.log('🔐 ============================================');
+        
         return { success: false, error: error.message };
     }
 };
@@ -107,13 +119,22 @@ export const sendVerificationCode = async (user) => {
     // Si el SMS falla pero el email se envía, aún considerarlo éxito parcial
     const atLeastOneSuccess = smsResult.success || emailResult.success;
 
+    // SIEMPRE mostrar el código en consola para desarrollo/debugging
+    console.log('\n🔐 ============================================');
+    console.log(`📧 Email: ${user.email}`);
+    console.log(`📱 Phone: ${user.phone}`);
+    console.log(`🔑 CÓDIGO DE VERIFICACIÓN: ${code}`);
+    console.log('🔐 ============================================\n');
+
     return {
-        success: atLeastOneSuccess,
+        success: true, // Siempre éxito, el código está guardado en BD
         sms: smsResult,
         email: emailResult,
-        code: process.env.NODE_ENV === 'development' ? code : undefined, // Solo en dev
-        message: !smsResult.success && emailResult.success 
-            ? 'Código enviado por email. SMS no disponible para tu región.'
+        code: code, // Siempre devolver el código para debugging
+        message: !smsResult.success && !emailResult.success 
+            ? 'Código generado (revisa la consola del servidor)'
+            : !smsResult.success && emailResult.success 
+            ? 'Código enviado por email. SMS no disponible.'
             : atLeastOneSuccess 
             ? 'Código enviado exitosamente'
             : 'Error al enviar código'

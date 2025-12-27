@@ -79,6 +79,12 @@ const appointmentSchema = new mongoose.Schema(
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User'
+        },
+        
+        // Admin o co-admin asignado para atender la cita
+        assignedTo: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
         }
     },
     {

@@ -40,6 +40,19 @@ const notificationSchema = new mongoose.Schema(
                 error: String
             }]
         },
+
+        // Resultados individuales por usuario
+        results: [{
+            success: Boolean,
+            phone: String,
+            error: String,
+            mode: String,
+            user: {
+                id: mongoose.Schema.Types.ObjectId,
+                username: String,
+                phone: String
+            }
+        }],
         
         // Estado del envío masivo
         status: {

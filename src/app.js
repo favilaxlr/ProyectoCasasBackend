@@ -35,7 +35,7 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(cookieParser());//Cookie en formto Json
 //Recibir imagenes en el req.body
-app.use(express.urlencoded({extended: false})); //Recibir imagenes
+app.use(express.urlencoded({extended: true})); //Importante para webhooks de Twilio
 
 //Indicamos al servidor que utilice las rutas del objeto authRoutes
 app.use('/api/', authRoutes);

@@ -6,14 +6,40 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Función para enviar SMS a admin asignado
+const notifyAssignedAdmin = async (appointment, property) => {
+    if (!client || !appointment.assignedTo) return;
+    
+    try {
+        const admin = await User.findById(appointment.assignedTo);
+        if (!admin || !admin.phone) return;
+        
+        const message = `CITA CONFIRMADA - ${appointment.visitor.name} confirmó su cita para "${property.title}" el ${new Date(appointment.appointmentDate).toLocaleDateString('es-MX')} a las ${appointment.appointmentTime}. Contacto: ${appointment.visitor.phone}`;
+        
+        await client.messages.create({
+            body: message,
+            from: process.env.TWILIO_PHONE_NUMBER,
+            to: admin.phone
+        });
+        
+        console.log(`📲 Notificación enviada al admin ${admin.username}`);
+    } catch (error) {
+        console.error('❌ Error notificando admin:', error.message);
+    }
+};
+
 // Configurar Twilio solo si las credenciales están disponibles
 let client = null;
 if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID !== 'your_account_sid_here') {
     try {
         client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+        console.log('✅ Twilio configurado correctamente para appointments');
+        console.log('📱 Número de envío:', process.env.TWILIO_PHONE_NUMBER);
     } catch (error) {
-        console.error('Error configurando Twilio para citas:', error);
+        console.error('❌ Error configurando Twilio para citas:', error);
     }
+} else {
+    console.warn('⚠️ Twilio NO configurado - Credenciales faltantes');
 }
 
 // Generar código de confirmación único
@@ -21,15 +47,16 @@ const generateConfirmationCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 };
 
-// Función para enviar SMS de confirmación
-const sendConfirmationSMS = async (phone, confirmationCode, propertyTitle, appointmentDate, appointmentTime) => {
+// Función para enviar SMS de confirmación con link
+const sendConfirmationSMS = async (phone, appointmentId, confirmationCode, propertyTitle, appointmentDate, appointmentTime) => {
     if (!client) {
         console.log('Twilio no configurado - saltando SMS de confirmación');
         return false;
     }
     
     try {
-        const message = `Confirma tu cita para "${propertyTitle}" el ${appointmentDate} a las ${appointmentTime}. Responde "YES" para confirmar. Código: ${confirmationCode}`;
+        const confirmLink = `${process.env.BASE_URL_FRONTEND}/confirm-appointment/${appointmentId}/${confirmationCode}`;
+        const message = `Confirma tu cita para "${propertyTitle}" el ${appointmentDate} a las ${appointmentTime}. Haz clic para confirmar: ${confirmLink}`;
         
         await client.messages.create({
             body: message,
@@ -37,6 +64,7 @@ const sendConfirmationSMS = async (phone, confirmationCode, propertyTitle, appoi
             to: phone
         });
         
+        console.log(`📱 SMS con link enviado a ${phone}`);
         return true;
     } catch (error) {
         console.error('Error enviando SMS:', error);
@@ -136,9 +164,10 @@ export const createAppointment = async (req, res) => {
 
         const savedAppointment = await newAppointment.save();
         
-        // Intentar enviar SMS de confirmación (no bloqueante)
+        // Intentar enviar SMS de confirmación con link (no bloqueante)
         const smsSuccess = await sendConfirmationSMS(
             user.phone,
+            savedAppointment._id,
             confirmationCode,
             property.title,
             appointmentDate,
@@ -194,6 +223,7 @@ export const getAppointments = async (req, res) => {
         const appointments = await Appointment.find(filter)
             .populate('property', 'title address')
             .populate('user', 'username email')
+            .populate('assignedTo', 'username')
             .sort({ appointmentDate: 1 });
         
         res.json(appointments);
@@ -220,7 +250,83 @@ export const getAppointment = async (req, res) => {
     }
 };
 
-// Función para confirmar cita por SMS
+// Webhook de Twilio para recibir respuestas SMS automáticamente
+export const twilioWebhook = async (req, res) => {
+    try {
+        // Twilio envía datos como application/x-www-form-urlencoded
+        const { Body, From } = req.body;
+        
+        console.log('\n📱 ============================================');
+        console.log('🔔 SMS recibido de Twilio');
+        console.log(`📞 De: ${From}`);
+        console.log(`💬 Mensaje: ${Body}`);
+        console.log('📱 ============================================\n');
+        
+        if (!Body || !From) {
+            console.log('❌ Datos incompletos del webhook');
+            return res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+        }
+
+        // Buscar cita pendiente de este número de teléfono
+        const appointment = await Appointment.findOne({ 
+            'visitor.phone': From,
+            status: 'pending_sms_confirmation'
+        }).populate('property', 'title').populate('assignedTo', 'username phone');
+        
+        if (!appointment) {
+            console.log('⚠️ No se encontró cita pendiente para este número');
+            return res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+        }
+
+        const responseText = Body.toLowerCase().trim();
+        
+        // Verificar si la respuesta es "YES"
+        if (responseText === 'yes' || responseText === 'si' || responseText === 'sí') {
+            appointment.status = 'confirmed';
+            appointment.confirmedAt = new Date();
+            await appointment.save();
+            
+            console.log(`✅ Cita ${appointment._id} confirmada por SMS`);
+            
+            // Notificar al admin asignado
+            await notifyAssignedAdmin(appointment, appointment.property);
+            
+            // Responder al usuario
+            const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Message>¡Gracias! Tu cita para "${appointment.property.title}" está confirmada. Te esperamos el ${new Date(appointment.appointmentDate).toLocaleDateString('es-MX')} a las ${appointment.appointmentTime}.</Message>
+</Response>`;
+            
+            return res.status(200).type('text/xml').send(twimlResponse);
+        } else if (responseText === 'no') {
+            appointment.status = 'cancelled';
+            appointment.notes = (appointment.notes || '') + '\nCancelada por SMS: Usuario respondió NO';
+            await appointment.save();
+            
+            console.log(`❌ Cita ${appointment._id} cancelada por SMS`);
+            
+            const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Message>Entendido. Tu cita ha sido cancelada. Puedes agendar otra en cualquier momento.</Message>
+</Response>`;
+            
+            return res.status(200).type('text/xml').send(twimlResponse);
+        } else {
+            // Respuesta no reconocida
+            const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Message>Por favor responde "YES" para confirmar tu cita o "NO" para cancelarla.</Message>
+</Response>`;
+            
+            return res.status(200).type('text/xml').send(twimlResponse);
+        }
+    } catch (error) {
+        console.error('❌ Error en webhook de Twilio:', error);
+        return res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+    }
+};
+
+// Función para confirmar cita por SMS (endpoint manual - mantener por compatibilidad)
 export const confirmAppointmentBySMS = async (req, res) => {
     try {
         const { confirmationCode, response } = req.body;
@@ -244,6 +350,9 @@ export const confirmAppointmentBySMS = async (req, res) => {
             appointment.confirmedAt = new Date();
             await appointment.save();
             
+            // Notificar al admin asignado
+            await notifyAssignedAdmin(appointment, appointment.property);
+            
             res.json({ 
                 message: 'Cita confirmada exitosamente',
                 appointment,
@@ -263,6 +372,119 @@ export const confirmAppointmentBySMS = async (req, res) => {
     } catch (error) {
         console.error('Error confirming appointment by SMS:', error);
         res.status(500).json({ message: ['Error al procesar confirmación por SMS'] });
+    }
+};
+
+// Función para confirmar cita por link (pública)
+export const confirmAppointmentByLink = async (req, res) => {
+    try {
+        const { id, code } = req.params;
+        
+        if (!id || !code) {
+            return res.status(400).json({ message: ['Parámetros inválidos'] });
+        }
+
+        const appointment = await Appointment.findOne({ 
+            _id: id,
+            confirmationCode: code,
+            status: 'pending_sms_confirmation'
+        }).populate('property', 'title address');
+        
+        if (!appointment) {
+            return res.status(404).json({ 
+                message: ['Cita no encontrada o ya fue procesada'],
+                alreadyConfirmed: false
+            });
+        }
+
+        // Confirmar la cita
+        appointment.status = 'confirmed';
+        appointment.confirmedAt = new Date();
+        await appointment.save();
+        
+        console.log(`✅ Cita ${appointment._id} confirmada por link`);
+        
+        res.json({ 
+            success: true,
+            message: '¡Cita confirmada exitosamente!',
+            appointment: {
+                property: appointment.property.title,
+                date: appointment.appointmentDate,
+                time: appointment.appointmentTime,
+                address: appointment.property.address
+            }
+        });
+    } catch (error) {
+        console.error('Error confirmando cita por link:', error);
+        res.status(500).json({ message: ['Error al confirmar la cita'] });
+    }
+};
+
+// Función para asignar cita a admin/co-admin
+export const assignAppointment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const adminId = req.user.id;
+        
+        const appointment = await Appointment.findById(id)
+            .populate('property', 'title address');
+            
+        if (!appointment) {
+            return res.status(404).json({ message: ['Cita no encontrada'] });
+        }
+
+        // Solo citas confirmadas pueden ser asignadas
+        if (appointment.status !== 'confirmed') {
+            return res.status(400).json({ message: ['Solo puedes asignarte citas confirmadas'] });
+        }
+
+        // Asignar al admin actual
+        appointment.assignedTo = adminId;
+        await appointment.save();
+        
+        // Obtener información del admin
+        const admin = await User.findById(adminId).select('username phone');
+        
+        // Enviar SMS de confirmación al cliente
+        if (client && appointment.visitor && appointment.visitor.phone) {
+            try {
+                const fechaCita = new Date(appointment.appointmentDate).toLocaleDateString('es-MX');
+                
+                const direccion = appointment.property.address 
+                    ? `${appointment.property.address.street}, ${appointment.property.address.city}`
+                    : 'Por confirmar';
+                
+                const message = `FR Family Investments - Tu cita para "${appointment.property.title}" esta confirmada. Fecha: ${fechaCita} a las ${appointment.appointmentTime}. Te atendera: ${admin.username}. Direccion: ${direccion}`;
+                
+                console.log('📤 Intentando enviar SMS...');
+                console.log('📱 Destino:', appointment.visitor.phone);
+                console.log('📝 Mensaje:', message);
+                
+                const result = await client.messages.create({
+                    body: message,
+                    from: process.env.TWILIO_PHONE_NUMBER,
+                    to: appointment.visitor.phone
+                });
+                
+                console.log(`✅ SMS enviado exitosamente - SID: ${result.sid}`);
+                console.log(`📊 Estado: ${result.status}`);
+            } catch (error) {
+                console.error('❌ Error enviando SMS de confirmación final:', error.message);
+                console.error('📋 Detalles:', error);
+            }
+        } else {
+            console.log('⚠️ No se pudo enviar SMS: Twilio no configurado o teléfono faltante');
+        }
+        
+        console.log(`✅ Cita ${id} asignada a ${admin.username}`);
+        
+        res.json({ 
+            message: 'Cita asignada exitosamente. Se ha notificado al cliente.',
+            appointment
+        });
+    } catch (error) {
+        console.error('❌ Error asignando cita:', error);
+        res.status(500).json({ message: ['Error al asignar la cita'] });
     }
 };
 
@@ -391,5 +613,95 @@ export const getUserAppointments = async (req, res) => {
         res.json(appointments);
     } catch (error) {
         res.status(500).json({ message: ['Error al obtener citas del usuario'] });
+    }
+};
+
+// Función para enviar recordatorios de citas (ejecutar diariamente)
+export const sendAppointmentReminders = async (req, res) => {
+    try {
+        // Obtener citas para mañana
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        
+        const dayAfterTomorrow = new Date(tomorrow);
+        dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+        
+        const appointments = await Appointment.find({
+            appointmentDate: {
+                $gte: tomorrow,
+                $lt: dayAfterTomorrow
+            },
+            status: 'confirmed',
+            assignedTo: { $exists: true, $ne: null }
+        })
+        .populate('property', 'title address')
+        .populate('assignedTo', 'username phone');
+        
+        console.log(`\n📅 Procesando ${appointments.length} recordatorios de citas...`);
+        
+        let sentCount = 0;
+        
+        for (const appointment of appointments) {
+            if (!client) continue;
+            
+            try {
+                const dateStr = new Date(appointment.appointmentDate).toLocaleDateString('es-MX', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                
+                // Recordatorio al cliente
+                if (appointment.visitor.phone) {
+                    const clientMessage = `RECORDATORIO - FR Family Investments: Mañana ${dateStr} a las ${appointment.appointmentTime} tienes cita para "${appointment.property.title}". Te atenderá: ${appointment.assignedTo.username}. Dirección: ${appointment.property.address.street}, ${appointment.property.address.city}.`;
+                    
+                    await client.messages.create({
+                        body: clientMessage,
+                        from: process.env.TWILIO_PHONE_NUMBER,
+                        to: appointment.visitor.phone
+                    });
+                    
+                    console.log(`✅ Recordatorio enviado al cliente: ${appointment.visitor.phone}`);
+                    sentCount++;
+                }
+                
+                // Recordatorio al admin asignado
+                if (appointment.assignedTo.phone) {
+                    const adminMessage = `RECORDATORIO - Mañana ${dateStr} a las ${appointment.appointmentTime} tienes cita asignada con ${appointment.visitor.name} en "${appointment.property.title}". Contacto: ${appointment.visitor.phone}.`;
+                    
+                    await client.messages.create({
+                        body: adminMessage,
+                        from: process.env.TWILIO_PHONE_NUMBER,
+                        to: appointment.assignedTo.phone
+                    });
+                    
+                    console.log(`✅ Recordatorio enviado al admin: ${appointment.assignedTo.username}`);
+                    sentCount++;
+                }
+                
+                // Pequeña pausa entre mensajes
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+            } catch (error) {
+                console.error(`❌ Error enviando recordatorio para cita ${appointment._id}:`, error.message);
+            }
+        }
+        
+        console.log(`\n✅ Recordatorios completados: ${sentCount} SMS enviados\n`);
+        
+        if (res) {
+            res.json({ 
+                success: true,
+                appointmentsFound: appointments.length,
+                remindersSent: sentCount
+            });
+        }
+    } catch (error) {
+        console.error('Error enviando recordatorios:', error);
+        if (res) {
+            res.status(500).json({ message: ['Error al enviar recordatorios'] });
+        }
     }
 };

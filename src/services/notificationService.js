@@ -39,12 +39,13 @@ const sendSMSWithRetry = async (phone, message, retries = MAX_RETRIES) => {
         try {
             // Si Twilio está disponible, enviar SMS real
             if (client && TWILIO_ENABLED) {
-                await client.messages.create({
+                const result = await client.messages.create({
                     body: message,
                     from: process.env.TWILIO_PHONE_NUMBER,
                     to: phone
                 });
-                return { success: true, phone, mode: 'twilio' };
+                console.log(`📱 SMS enviado a ${phone} - SID: ${result.sid} - Status: ${result.status}`);
+                return { success: true, phone, mode: 'twilio', sid: result.sid, status: result.status };
             } else {
                 // Modo mock: simular envío exitoso el 95% de las veces
                 const mockSuccess = Math.random() > 0.05;
@@ -57,6 +58,7 @@ const sendSMSWithRetry = async (phone, message, retries = MAX_RETRIES) => {
                 }
             }
         } catch (error) {
+            console.error(`❌ Error enviando SMS a ${phone} (intento ${attempt}/${retries}):`, error.message);
             if (attempt === retries) {
                 return { 
                     success: false, 
@@ -74,12 +76,22 @@ const sendSMSWithRetry = async (phone, message, retries = MAX_RETRIES) => {
 // Función para procesar lotes de usuarios
 const processBatch = async (users, message) => {
     const results = await Promise.all(
-        users.map(user => sendSMSWithRetry(user.phone, message))
+        users.map(user => 
+            sendSMSWithRetry(user.phone, message).then(result => ({
+                ...result,
+                user: {
+                    id: user._id,
+                    username: user.username,
+                    phone: user.phone
+                }
+            }))
+        )
     );
     
     return {
         sent: results.filter(r => r.success),
-        failed: results.filter(r => !r.success)
+        failed: results.filter(r => !r.success),
+        all: results
     };
 };
 
@@ -89,11 +101,12 @@ export const sendMassNotification = async (property, createdBy) => {
     let notification;
     
     try {
-        // 1. Obtener todos los usuarios VERIFICADOS con teléfono válido
+        // 1. Obtener todos los usuarios VERIFICADOS con teléfono válido (excluyendo admins)
         const users = await User.find({
             phone: { $exists: true, $ne: '' },
             isEmailVerified: true,
-            isPhoneVerified: true
+            isPhoneVerified: true,
+            role: { $ne: 'admin' }
         }).select('phone username');
 
         if (users.length === 0) {
@@ -102,6 +115,12 @@ export const sendMassNotification = async (property, createdBy) => {
 
         // 2. Generar mensaje
         const message = generatePropertyMessage(property);
+
+        console.log('\n📢 ============================================');
+        console.log('🏠 Iniciando envío de notificaciones masivas...');
+        console.log(`📊 Total usuarios a notificar: ${users.length}`);
+        console.log(`📝 Mensaje: ${message.substring(0, 50)}...`);
+        console.log('📢 ============================================\n');
 
         // 3. Crear registro de notificación
         notification = new Notification({
@@ -114,6 +133,7 @@ export const sendMassNotification = async (property, createdBy) => {
                 failedCount: 0,
                 invalidNumbers: []
             },
+            results: [],
             status: 'in_progress',
             createdBy,
             processingTime: {
@@ -127,6 +147,7 @@ export const sendMassNotification = async (property, createdBy) => {
         let totalSent = 0;
         let totalFailed = 0;
         const invalidNumbers = [];
+        const allResults = [];
 
         for (let i = 0; i < users.length; i += BATCH_SIZE) {
             // Verificar tiempo máximo de procesamiento
@@ -139,6 +160,7 @@ export const sendMassNotification = async (property, createdBy) => {
 
             totalSent += batchResults.sent.length;
             totalFailed += batchResults.failed.length;
+            allResults.push(...batchResults.all);
             
             // Registrar números inválidos
             batchResults.failed.forEach(failed => {
@@ -146,13 +168,20 @@ export const sendMassNotification = async (property, createdBy) => {
                     phone: failed.phone,
                     error: failed.error
                 });
+                console.log(`❌ Fallo: ${failed.user?.username} (${failed.phone}) - ${failed.error}`);
+            });
+
+            // Log de éxitos
+            batchResults.sent.forEach(sent => {
+                console.log(`✅ Enviado: ${sent.user?.username} (${sent.phone})`);
             });
 
             // Actualizar progreso en base de datos
             await Notification.findByIdAndUpdate(notification._id, {
                 'stats.sentCount': totalSent,
                 'stats.failedCount': totalFailed,
-                'stats.invalidNumbers': invalidNumbers
+                'stats.invalidNumbers': invalidNumbers,
+                results: allResults
             });
 
             // Pausa entre lotes (excepto en el último)
@@ -170,9 +199,17 @@ export const sendMassNotification = async (property, createdBy) => {
             'stats.sentCount': totalSent,
             'stats.failedCount': totalFailed,
             'stats.invalidNumbers': invalidNumbers,
+            results: allResults,
             'processingTime.completedAt': endTime,
             'processingTime.duration': duration
         });
+
+        console.log('\n📢 ============================================');
+        console.log('✅ Notificaciones completadas');
+        console.log(`📊 Enviados: ${totalSent}/${users.length}`);
+        console.log(`❌ Fallidos: ${totalFailed}/${users.length}`);
+        console.log(`⏱️  Duración: ${duration}s`);
+        console.log('📢 ============================================\n');
 
         return {
             success: true,
