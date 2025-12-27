@@ -1,5 +1,6 @@
 import twilio from 'twilio';
 import User from '../models/user.models.js';
+import Role from '../models/roles.models.js';
 import Notification from '../models/notification.models.js';
 import dotenv from 'dotenv';
 
@@ -101,19 +102,29 @@ export const sendMassNotification = async (property, createdBy) => {
     let notification;
     
     try {
-        // 1. Obtener todos los usuarios VERIFICADOS con teléfono válido (excluyendo admins)
-        const users = await User.find({
+        // 1. Obtener el ObjectId del rol 'admin' para excluirlo
+        const adminRole = await Role.findOne({ role: 'admin' });
+        const adminRoleId = adminRole?._id;
+        
+        // 2. Obtener todos los usuarios VERIFICADOS con teléfono válido (excluyendo admins)
+        const userQuery = {
             phone: { $exists: true, $ne: '' },
             isEmailVerified: true,
-            isPhoneVerified: true,
-            role: { $ne: 'admin' }
-        }).select('phone username');
+            isPhoneVerified: true
+        };
+        
+        // Solo excluir admins si encontramos el rol
+        if (adminRoleId) {
+            userQuery.role = { $ne: adminRoleId };
+        }
+        
+        const users = await User.find(userQuery).select('phone username');
 
         if (users.length === 0) {
             throw new Error('No hay usuarios verificados para notificar');
         }
 
-        // 2. Generar mensaje
+        // 3. Generar mensaje
         const message = generatePropertyMessage(property);
 
         console.log('\n📢 ============================================');
@@ -122,7 +133,7 @@ export const sendMassNotification = async (property, createdBy) => {
         console.log(`📝 Mensaje: ${message.substring(0, 50)}...`);
         console.log('📢 ============================================\n');
 
-        // 3. Crear registro de notificación
+        // 4. Crear registro de notificación
         notification = new Notification({
             type: 'new_property',
             property: property._id,
@@ -143,7 +154,7 @@ export const sendMassNotification = async (property, createdBy) => {
 
         await notification.save();
 
-        // 4. Procesar en lotes
+        // 5. Procesar en lotes
         let totalSent = 0;
         let totalFailed = 0;
         const invalidNumbers = [];
@@ -190,7 +201,7 @@ export const sendMassNotification = async (property, createdBy) => {
             }
         }
 
-        // 5. Finalizar proceso
+        // 6. Finalizar proceso
         const endTime = new Date();
         const duration = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
 

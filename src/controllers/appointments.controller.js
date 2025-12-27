@@ -315,7 +315,7 @@ export const twilioWebhook = async (req, res) => {
             // Respuesta no reconocida
             const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Message>Por favor responde "YES" para confirmar tu cita o "NO" para cancelarla.</Message>
+    <Message>Por favor usa el enlace que te enviamos para confirmar tu cita. Si necesitas cancelar, puedes hacerlo desde tu cuenta.</Message>
 </Response>`;
             
             return res.status(200).type('text/xml').send(twimlResponse);
