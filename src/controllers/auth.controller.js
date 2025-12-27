@@ -8,6 +8,26 @@ import { TOKEN_SECRET } from '../config.js';
 import dotenv from 'dotenv';
 import { sendVerificationCode, verifyCode } from '../services/verificationService.js';
 
+// Función helper para configurar cookies de autenticación
+const setAuthCookie = (res, token) => {
+    if (process.env.ENVIROMENT === 'local') {
+        res.cookie('token', token, {
+            sameSite: 'lax',
+        });
+    } else {
+        const frontendUrl = new URL(process.env.BASE_URL_FRONTEND);
+        const domain = frontendUrl.hostname;
+        
+        res.cookie('token', token, {
+            sameSite: 'none',
+            secure: true,
+            domain: domain,
+            httpOnly: true,
+            maxAge: 24 * 60 * 60 * 1000 // 24 horas
+        });
+    }
+};
+
 //Configuramos las variables de entorno
 dotenv.config()
 
@@ -124,16 +144,7 @@ export const login = async (req, res)=>{
 
         //Verificamos el inicio de sesión lo generamos para el entorno local
         //de desarollo, o lo generamos para el servidor en la nube 
-        if (process.env.ENVIROMENT=='local'){
-            res.cookie('token', token, {
-                sameSite: 'lax', //para indicar que el backend y front son locales para desarrollo
-            });
-        } else{
-            res.cookie('token', token, {
-                sameSite: 'none', //para peticiones remotas
-                secure: true, //para activar https en deployment
-            });
-        } //Fin de if(process.env.ENVIROMENT)
+        setAuthCookie(res, token);
 
         res.json({
             id: userFound._id,
@@ -152,9 +163,22 @@ export const login = async (req, res)=>{
 
 //Funcion para cerrar sesión
 export const logout = (req,res)=>{
-    res.cookie('token',"",{
-        expires: new Date(0)
-    })
+    if (process.env.ENVIROMENT=='local'){
+        res.cookie('token',"",{
+            expires: new Date(0)
+        })
+    } else {
+        const frontendUrl = new URL(process.env.BASE_URL_FRONTEND);
+        const domain = frontendUrl.hostname;
+        
+        res.cookie('token',"",{
+            expires: new Date(0),
+            sameSite: 'none',
+            secure: true,
+            domain: domain,
+            httpOnly: true
+        })
+    }
     //Retornamos 200= OK
     return res.sendStatus(200);
 }
@@ -251,16 +275,7 @@ export const verifyUserCode = async (req, res) => {
             const role = await Role.findById(user.role);
             const token = await createAccessToken({id: user._id});
 
-            if (process.env.ENVIROMENT=='local'){
-                res.cookie('token', token, {
-                    sameSite: 'lax',
-                });
-            } else {
-                res.cookie('token', token, {
-                    sameSite: 'none',
-                    secure: true,
-                });
-            }
+            setAuthCookie(res, token);
 
             return res.json({
                 message: 'Ya estás verificado. Bienvenido de nuevo',
@@ -292,18 +307,7 @@ export const verifyUserCode = async (req, res) => {
         const role = await Role.findById(user.role);
         const token = await createAccessToken({id: user._id});
 
-        //Verificamos si el token de inicio de sesion lo generamos para el entorno local
-        //de desarrollo, o lo generamos para el servidor en la nube
-        if (process.env.ENVIROMENT=='local'){
-            res.cookie('token', token, {
-                sameSite: 'lax',
-            });
-        } else {
-            res.cookie('token', token, {
-                sameSite: 'none',
-                secure: true,
-            });
-        }
+        setAuthCookie(res, token);
 
         console.log('✅ Verificación completada exitosamente');
 
