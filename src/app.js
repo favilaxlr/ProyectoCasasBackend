@@ -26,8 +26,8 @@ const app= express();
 
 app.use(cors({
     origin: [
-        process.env.BASE_URL_BACKEND,
-        process.env.BASE_URL_FRONTEND
+        process.env.BASE_URL_FRONTEND,
+        process.env.BASE_URL_BACKEND
     ],
     credentials: true
 }));
@@ -46,5 +46,15 @@ app.use('/api/', appointmentRoutes);
 app.use('/api/admin/', userRoutes);
 app.use('/api/', reviewRoutes);
 app.use('/api/admin/', notificationRoutes);
+
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'OK',
+        message: 'Server is running',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
+});
 
 export default app;
