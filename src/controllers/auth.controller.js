@@ -152,7 +152,8 @@ export const login = async (req, res)=>{
             email: userFound.email,
             phone: userFound.phone,
             profileImage: userFound.profileImage,
-            role: role
+            role: role,
+            token: token // Incluir token en el body para producción
         })
     } catch (error){
         res.status(500)
