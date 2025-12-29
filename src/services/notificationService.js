@@ -28,10 +28,13 @@ const BATCH_INTERVAL = 1000; // 1 segundo entre lotes
 const MAX_RETRIES = 3;
 const MAX_PROCESSING_TIME = 10 * 60 * 1000; // 10 minutos
 
-// Plantilla de mensaje para nuevas propiedades
+// Plantilla de mensaje para nuevas propiedades (optimizada para SMS)
 const generatePropertyMessage = (property) => {
     const baseUrl = process.env.BASE_URL_FRONTEND || 'http://localhost:5173';
-    return `NUEVA PROPIEDAD DISPONIBLE - FR Family Investments. Propiedad: ${property.title}. Precio: $${property.price?.sale?.toLocaleString()}. Recámaras: ${property.details?.bedrooms}. Baños: ${property.details?.bathrooms}. Ubicación: ${property.address?.city}, Dallas. Ver detalles: ${baseUrl}/properties/${property._id}`;
+    const price = property.price?.sale ? `$${Math.round(property.price.sale / 1000)}K` : 'N/A';
+    const beds = property.details?.bedrooms || 'N/A';
+    const baths = property.details?.bathrooms || 'N/A';
+    return `🏠 New property: ${property.title}\n${price} | ${beds}bed ${baths}bath\n${property.address?.city || 'Dallas'}\n${baseUrl}/properties/${property._id}`;
 };
 
 // Función para enviar SMS individual con reintentos (con soporte para modo mock)
