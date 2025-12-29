@@ -37,6 +37,15 @@ const generatePropertyMessage = (property) => {
     return `🏠 New property: ${property.title}\n${price} | ${beds}bed ${baths}bath\n${property.address?.city || 'Dallas'}\n${baseUrl}/properties/${property._id}`;
 };
 
+// Plantilla de mensaje para propiedades que vuelven a estar disponibles
+const generateAvailableAgainMessage = (property) => {
+    const baseUrl = process.env.BASE_URL_FRONTEND || 'http://localhost:5173';
+    const price = property.price?.sale ? `$${Math.round(property.price.sale / 1000)}K` : 'N/A';
+    const beds = property.details?.bedrooms || 'N/A';
+    const baths = property.details?.bathrooms || 'N/A';
+    return `✨ Available again: ${property.title}\n${price} | ${beds}bed ${baths}bath\n${property.address?.city || 'Dallas'}\n${baseUrl}/properties/${property._id}`;
+};
+
 // Función para enviar SMS individual con reintentos (con soporte para modo mock)
 const sendSMSWithRetry = async (phone, message, retries = MAX_RETRIES) => {
     for (let attempt = 1; attempt <= retries; attempt++) {
@@ -99,8 +108,14 @@ const processBatch = async (users, message) => {
     };
 };
 
+// Función para notificar cuando una propiedad vuelve a estar disponible
+export const sendPropertyAvailableNotification = async (property, changedBy) => {
+    const message = generateAvailableAgainMessage(property);
+    return await sendMassNotification(property, changedBy, message, 'available_again');
+};
+
 // Función principal para envío masivo
-export const sendMassNotification = async (property, createdBy) => {
+export const sendMassNotification = async (property, createdBy, customMessage = null, notificationType = 'new_property') => {
     const startTime = new Date();
     let notification;
     

@@ -389,6 +389,9 @@ export const changePropertyStatus = async (req, res) => {
             return res.status(404).json({ message: ['Propiedad no encontrada'] });
         }
 
+        // Guardar el estado anterior para comparar
+        const previousStatus = property.status;
+
         // Agregar al historial
         property.statusHistory.push({
             status: property.status,
@@ -408,6 +411,20 @@ export const changePropertyStatus = async (req, res) => {
         }
 
         await property.save();
+        
+        // Si la propiedad vuelve a estar disponible, enviar notificaciones
+        if (status === 'DISPONIBLE' && (previousStatus === 'EN_CONTRATO' || previousStatus === 'VENDIDA')) {
+            console.log('✨ Propiedad vuelve a estar disponible, enviando notificaciones...');
+            try {
+                const { sendPropertyAvailableNotification } = await import('../services/notificationService.js');
+                // No esperar la notificación (fire and forget)
+                sendPropertyAvailableNotification(property, req.user.id)
+                    .then(result => console.log('✅ Notificación de disponibilidad enviada:', result.notification._id))
+                    .catch(err => console.error('❌ Error enviando notificación de disponibilidad:', err.message));
+            } catch (error) {
+                console.error('❌ Error al importar servicio de notificaciones:', error.message);
+            }
+        }
         
         res.json({ 
             message: `Estado cambiado a ${status}`, 
