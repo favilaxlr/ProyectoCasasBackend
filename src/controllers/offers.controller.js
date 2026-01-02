@@ -47,8 +47,8 @@ export const createOffer = async (req, res) => {
 
         // Poblar los datos antes de devolver
         await offer.populate('property', 'title address images');
-        await offer.populate('user', 'username email');
-        await offer.populate('messages.sender', 'username');
+        await offer.populate('user', 'username email phone profileImage');
+        await offer.populate('messages.sender', 'username profileImage');
 
         res.status(201).json(offer);
     } catch (error) {
@@ -62,7 +62,7 @@ export const getUserOffers = async (req, res) => {
     try {
         const offers = await Offer.find({ user: req.user.id })
             .populate('property', 'title address images price status')
-            .populate('assignedTo', 'username')
+            .populate('assignedTo', 'username profileImage')
             .sort({ updatedAt: -1 });
 
         res.json(offers);
@@ -132,7 +132,7 @@ export const sendMessage = async (req, res) => {
         offer.unreadCount.admin += 1;
 
         await offer.save();
-        await offer.populate('messages.sender', 'username');
+        await offer.populate('messages.sender', 'username profileImage');
 
         res.json(offer);
     } catch (error) {
@@ -151,7 +151,7 @@ export const getPendingOffers = async (req, res) => {
             assignedTo: null 
         })
             .populate('property', 'title address images price')
-            .populate('user', 'username email')
+            .populate('user', 'username email phone profileImage')
             .sort({ createdAt: -1 });
 
         res.json(offers);
@@ -169,7 +169,7 @@ export const getMyAssignedOffers = async (req, res) => {
             status: { $in: ['in_progress', 'pending'] }
         })
             .populate('property', 'title address images price')
-            .populate('user', 'username email')
+            .populate('user', 'username email phone profileImage')
             .sort({ updatedAt: -1 });
 
         res.json(offers);
@@ -198,8 +198,8 @@ export const takeOffer = async (req, res) => {
 
         await offer.save();
         await offer.populate('property', 'title address images price');
-        await offer.populate('user', 'username email');
-        await offer.populate('assignedTo', 'username');
+        await offer.populate('user', 'username email phone profileImage');
+        await offer.populate('assignedTo', 'username profileImage');
 
         res.json(offer);
     } catch (error) {
@@ -268,7 +268,7 @@ export const sendAdminMessage = async (req, res) => {
         offer.unreadCount.user += 1;
 
         await offer.save();
-        await offer.populate('messages.sender', 'username');
+        await offer.populate('messages.sender', 'username profileImage');
 
         res.json(offer);
     } catch (error) {
@@ -305,8 +305,8 @@ export const getAllOffers = async (req, res) => {
     try {
         const offers = await Offer.find()
             .populate('property', 'title address images price')
-            .populate('user', 'username email')
-            .populate('assignedTo', 'username')
+            .populate('user', 'username email phone profileImage')
+            .populate('assignedTo', 'username profileImage')
             .sort({ updatedAt: -1 });
 
         res.json(offers);
