@@ -6,6 +6,7 @@ import {
     getUserOffers,
     getUserOffer,
     sendMessage,
+    checkExistingOffer,
     getPendingOffers,
     getMyAssignedOffers,
     takeOffer,
@@ -18,6 +19,9 @@ import {
 const router = Router();
 
 // ========== USER ROUTES ==========
+// Verificar si existe una oferta activa para una propiedad
+router.get('/offers/check/:propertyId', authRequired, checkExistingOffer);
+
 // Crear una oferta para una propiedad
 router.post('/offers', authRequired, createOffer);
 

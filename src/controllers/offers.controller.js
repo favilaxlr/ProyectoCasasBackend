@@ -14,6 +14,13 @@ export const createOffer = async (req, res) => {
             return res.status(404).json({ message: ['Property not found'] });
         }
 
+        // Validar que la oferta no sea mayor al precio de venta
+        if (property.price?.sale && offerAmount > property.price.sale) {
+            return res.status(400).json({ 
+                message: [`Your offer ($${offerAmount.toLocaleString()}) cannot be higher than the asking price ($${property.price.sale.toLocaleString()})`] 
+            });
+        }
+
         // Verificar si el usuario ya tiene una oferta pendiente para esta propiedad
         const existingOffer = await Offer.findOne({
             property: propertyId,
@@ -54,6 +61,32 @@ export const createOffer = async (req, res) => {
     } catch (error) {
         console.error('Error creating offer:', error);
         res.status(500).json({ message: ['Error creating offer'] });
+    }
+};
+
+// Verificar si existe una oferta activa del usuario para una propiedad específica
+export const checkExistingOffer = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+        
+        const existingOffer = await Offer.findOne({
+            property: propertyId,
+            user: req.user.id,
+            status: { $in: ['pending', 'in_progress'] }
+        })
+            .populate('property', 'title address images price')
+            .populate('user', 'username email phone profileImage')
+            .populate('assignedTo', 'username profileImage')
+            .populate('messages.sender', 'username profileImage');
+
+        if (existingOffer) {
+            return res.json({ hasOffer: true, offer: existingOffer });
+        }
+
+        res.json({ hasOffer: false });
+    } catch (error) {
+        console.error('Error checking existing offer:', error);
+        res.status(500).json({ message: ['Error checking offer'] });
     }
 };
 
