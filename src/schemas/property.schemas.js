@@ -46,6 +46,12 @@ export const propertySchema = z.object({
                 invalid_type_error: "Price must be a number"
             }).positive("Price must be positive").optional()
         ),
+        arv: z.preprocess(
+            (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+            z.number({
+                invalid_type_error: "ARV must be a number"
+            }).positive("ARV must be positive").optional()
+        ),
         taxes: z.preprocess(
             (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
             z.number().positive().optional()

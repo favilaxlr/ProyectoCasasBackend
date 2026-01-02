@@ -3,6 +3,7 @@ import { authRequired } from '../middlewares/validateToken.js';
 import { isAdmin } from '../middlewares/isAdmin.js';
 import { isAdminOrCoAdmin } from '../middlewares/isAdminOrCoAdmin.js';
 import { uploadToCloudinary } from '../middlewares/uploadImage.js';
+import { uploadDocumentsToCloudinary } from '../middlewares/uploadDocument.js';
 import multer from 'multer';
 import { validateSchema } from '../middlewares/validateSchemas.js';
 
@@ -17,7 +18,9 @@ import {
     deleteImage,
     setMainImage,
     changePropertyStatus,
-    getPropertyHistory
+    getPropertyHistory,
+    addDocuments,
+    deleteDocument
 } from '../controllers/properties.controller.js';
 
 // Importamos los schemas de validación
@@ -44,5 +47,9 @@ router.put('/properties/:id/images/:imageId/main', authRequired, isAdminOrCoAdmi
 // Rutas para gestión de estados
 router.put('/properties/:id/status', authRequired, isAdminOrCoAdmin, changePropertyStatus); // Cambiar estado
 router.get('/properties/:id/history', authRequired, isAdminOrCoAdmin, getPropertyHistory); // Ver historial
+
+// Rutas para gestión de documentos
+router.post('/properties/:id/documents', authRequired, isAdminOrCoAdmin, uploadDocumentsToCloudinary, addDocuments); // Agregar documentos
+router.delete('/properties/:id/documents/:documentId', authRequired, isAdminOrCoAdmin, deleteDocument); // Eliminar documento
 
 export default router;

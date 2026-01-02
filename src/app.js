@@ -21,6 +21,8 @@ import userRoutes from './routes/users.routes.js';
 import reviewRoutes from './routes/reviews.routes.js';
 //Importamos las rutas para notificaciones
 import notificationRoutes from './routes/notifications.routes.js';
+//Importamos las rutas para ofertas
+import offerRoutes from './routes/offers.routes.js';
 
 const app= express();
 
@@ -46,6 +48,7 @@ app.use('/api/', appointmentRoutes);
 app.use('/api/admin/', userRoutes);
 app.use('/api/', reviewRoutes);
 app.use('/api/admin/', notificationRoutes);
+app.use('/api/', offerRoutes);
 
 // Health check endpoint for Render
 app.get('/health', (req, res) => {

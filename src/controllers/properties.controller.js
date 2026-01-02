@@ -451,3 +451,78 @@ export const getPropertyHistory = async (req, res) => {
         res.status(500).json({ message: ['Error al obtener historial'] });
     }
 };
+
+// ========== DOCUMENT MANAGEMENT ==========
+
+export const addDocuments = async (req, res) => {
+    try {
+        const property = await Property.findById(req.params.id);
+        
+        if (!property) {
+            return res.status(404).json({ message: ['Property not found'] });
+        }
+
+        if (!req.uploadedDocuments || req.uploadedDocuments.length === 0) {
+            return res.status(400).json({ message: ['No documents uploaded'] });
+        }
+
+        // Agregar información de quién subió el documento
+        const documentsWithUser = req.uploadedDocuments.map(doc => ({
+            ...doc,
+            uploadedBy: req.user.id
+        }));
+
+        property.documents = [...(property.documents || []), ...documentsWithUser];
+        await property.save();
+
+        res.json({ 
+            message: 'Documents uploaded successfully',
+            documents: property.documents 
+        });
+    } catch (error) {
+        console.error('Error adding documents:', error);
+        res.status(500).json({ message: ['Error uploading documents'] });
+    }
+};
+
+export const deleteDocument = async (req, res) => {
+    try {
+        const { id, documentId } = req.params;
+        const property = await Property.findById(id);
+        
+        if (!property) {
+            return res.status(404).json({ message: ['Property not found'] });
+        }
+
+        const documentIndex = property.documents.findIndex(
+            doc => doc._id.toString() === documentId
+        );
+
+        if (documentIndex === -1) {
+            return res.status(404).json({ message: ['Document not found'] });
+        }
+
+        const document = property.documents[documentIndex];
+        
+        // Eliminar de Cloudinary
+        if (document.publicId) {
+            try {
+                const { deleteDocumentFromCloudinary } = await import('../middlewares/uploadDocument.js');
+                await deleteDocumentFromCloudinary(document.publicId);
+            } catch (error) {
+                console.error('Error deleting from Cloudinary:', error);
+            }
+        }
+
+        property.documents.splice(documentIndex, 1);
+        await property.save();
+
+        res.json({ 
+            message: 'Document deleted successfully',
+            documents: property.documents 
+        });
+    } catch (error) {
+        console.error('Error deleting document:', error);
+        res.status(500).json({ message: ['Error deleting document'] });
+    }
+};

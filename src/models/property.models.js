@@ -48,6 +48,7 @@ const propertySchema = new mongoose.Schema(
         price: {
             // Campos de venta
             sale: Number,
+            arv: Number, // After Repair Value - precio después de reparaciones
             taxes: Number,
             deedConditions: String,
             
@@ -107,6 +108,26 @@ const propertySchema = new mongoose.Schema(
                 default: false
             },
             caption: String
+        }],
+        
+        // Documentos (PDFs, Word, etc.)
+        documents: [{
+            url: {
+                type: String,
+                required: true
+            },
+            publicId: String,
+            fileName: String,
+            fileType: String, // 'pdf', 'doc', 'docx'
+            fileSize: Number, // en bytes
+            uploadedAt: {
+                type: Date,
+                default: Date.now
+            },
+            uploadedBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User'
+            }
         }],
         
         // Comodidades (piscina, gym, etc.)
