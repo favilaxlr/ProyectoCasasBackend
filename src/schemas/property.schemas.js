@@ -2,25 +2,25 @@ import { z } from 'zod';
 
 export const propertySchema = z.object({
     title: z.string({
-        required_error: "El título es requerido"
-    }).min(1, "El título no puede estar vacío"),
+        required_error: "Title is required"
+    }).min(1, "Title cannot be empty"),
     
     description: z.string({
-        required_error: "La descripción es requerida"
-    }).min(10, "La descripción debe tener al menos 10 caracteres"),
+        required_error: "Description is required"
+    }).min(10, "Description must be at least 10 characters"),
     
     address: z.object({
         street: z.string({
-            required_error: "La calle es requerida"
+            required_error: "Street is required"
         }),
         city: z.string({
-            required_error: "La ciudad es requerida"
+            required_error: "City is required"
         }),
         state: z.string({
-            required_error: "El estado es requerido"
+            required_error: "State is required"
         }),
         zipCode: z.string({
-            required_error: "El código postal es requerido"
+            required_error: "Zip code is required"
         }),
         coordinates: z.object({
             lat: z.preprocess(
@@ -35,7 +35,7 @@ export const propertySchema = z.object({
     }),
     
     businessMode: z.enum(['sale', 'rent', 'both'], {
-        required_error: "La modalidad de negocio es requerida"
+        required_error: "Business mode is required"
     }).optional(),
     
     price: z.object({
@@ -43,8 +43,8 @@ export const propertySchema = z.object({
         sale: z.preprocess(
             (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
             z.number({
-                invalid_type_error: "El precio debe ser un número"
-            }).positive("El precio debe ser positivo").optional()
+                invalid_type_error: "Price must be a number"
+            }).positive("Price must be positive").optional()
         ),
         taxes: z.preprocess(
             (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
@@ -56,8 +56,8 @@ export const propertySchema = z.object({
         monthlyRent: z.preprocess(
             (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
             z.number({
-                invalid_type_error: "La renta debe ser un número"
-            }).positive("La renta debe ser positiva").optional()
+                invalid_type_error: "Rent must be a number"
+            }).positive("Rent must be positive").optional()
         ),
         deposit: z.preprocess(
             (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
@@ -80,23 +80,23 @@ export const propertySchema = z.object({
         bedrooms: z.preprocess(
             (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
             z.number({
-                required_error: "El número de habitaciones es requerido",
-                invalid_type_error: "El número de habitaciones debe ser un número"
-            }).min(0, "Las habitaciones no pueden ser negativas")
+                required_error: "Number of bedrooms is required",
+                invalid_type_error: "Number of bedrooms must be a number"
+            }).min(0, "Bedrooms cannot be negative")
         ),
         bathrooms: z.preprocess(
             (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
             z.number({
-                required_error: "El número de baños es requerido",
-                invalid_type_error: "El número de baños debe ser un número"
-            }).min(0, "Los baños no pueden ser negativos")
+                required_error: "Number of bathrooms is required",
+                invalid_type_error: "Number of bathrooms must be a number"
+            }).min(0, "Bathrooms cannot be negative")
         ),
         squareFeet: z.preprocess(
             (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
             z.number().optional()
         ),
         propertyType: z.enum(["house", "apartment", "condo", "townhouse"], {
-            required_error: "El tipo de propiedad es requerido"
+            required_error: "Property type is required"
         }),
         yearBuilt: z.preprocess(
             (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
@@ -126,6 +126,6 @@ export const propertySchema = z.object({
     
     contact: z.object({
         phone: z.string().optional(),
-        email: z.string().email("Email inválido").optional()
+        email: z.string().email("Invalid email").optional()
     }).optional()
 });
