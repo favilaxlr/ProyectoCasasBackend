@@ -3,6 +3,7 @@ import Property from '../models/property.models.js';
 import User from '../models/user.models.js';
 import twilio from 'twilio';
 import dotenv from 'dotenv';
+import { checkAndSendReminders } from '../services/appointmentReminderService.js';
 
 dotenv.config();
 
@@ -619,89 +620,24 @@ export const getUserAppointments = async (req, res) => {
 // Función para enviar recordatorios de citas (ejecutar diariamente)
 export const sendAppointmentReminders = async (req, res) => {
     try {
-        // Obtener citas para mañana
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(0, 0, 0, 0);
+        console.log('📅 Manual reminder check triggered by admin...');
+        const result = await checkAndSendReminders();
         
-        const dayAfterTomorrow = new Date(tomorrow);
-        dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
-        
-        const appointments = await Appointment.find({
-            appointmentDate: {
-                $gte: tomorrow,
-                $lt: dayAfterTomorrow
-            },
-            status: 'confirmed',
-            assignedTo: { $exists: true, $ne: null }
-        })
-        .populate('property', 'title address')
-        .populate('assignedTo', 'username phone');
-        
-        console.log(`\n📅 Procesando ${appointments.length} recordatorios de citas...`);
-        
-        let sentCount = 0;
-        
-        for (const appointment of appointments) {
-            if (!client) continue;
-            
-            try {
-                const dateStr = new Date(appointment.appointmentDate).toLocaleDateString('es-MX', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
-                
-                // Recordatorio al cliente
-                if (appointment.visitor.phone) {
-                    const clientMessage = `RECORDATORIO - FR Family Investments: Mañana ${dateStr} a las ${appointment.appointmentTime} tienes cita para "${appointment.property.title}". Te atenderá: ${appointment.assignedTo.username}. Dirección: ${appointment.property.address.street}, ${appointment.property.address.city}.`;
-                    
-                    await client.messages.create({
-                        body: clientMessage,
-                        from: process.env.TWILIO_PHONE_NUMBER,
-                        to: appointment.visitor.phone
-                    });
-                    
-                    console.log(`✅ Recordatorio enviado al cliente: ${appointment.visitor.phone}`);
-                    sentCount++;
-                }
-                
-                // Recordatorio al admin asignado
-                if (appointment.assignedTo.phone) {
-                    const adminMessage = `RECORDATORIO - Mañana ${dateStr} a las ${appointment.appointmentTime} tienes cita asignada con ${appointment.visitor.name} en "${appointment.property.title}". Contacto: ${appointment.visitor.phone}.`;
-                    
-                    await client.messages.create({
-                        body: adminMessage,
-                        from: process.env.TWILIO_PHONE_NUMBER,
-                        to: appointment.assignedTo.phone
-                    });
-                    
-                    console.log(`✅ Recordatorio enviado al admin: ${appointment.assignedTo.username}`);
-                    sentCount++;
-                }
-                
-                // Pequeña pausa entre mensajes
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-            } catch (error) {
-                console.error(`❌ Error enviando recordatorio para cita ${appointment._id}:`, error.message);
-            }
-        }
-        
-        console.log(`\n✅ Recordatorios completados: ${sentCount} SMS enviados\n`);
-        
-        if (res) {
-            res.json({ 
-                success: true,
-                appointmentsFound: appointments.length,
-                remindersSent: sentCount
-            });
-        }
+        res.json({
+            success: result.success,
+            total: result.total || 0,
+            sent: result.sent || 0,
+            failed: result.failed || 0,
+            message: result.success 
+                ? `Reminders processed: ${result.sent} sent, ${result.failed} failed`
+                : 'Error processing reminders'
+        });
     } catch (error) {
-        console.error('Error enviando recordatorios:', error);
-        if (res) {
-            res.status(500).json({ message: ['Error al enviar recordatorios'] });
-        }
+        console.error('Error in manual reminder trigger:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Error processing reminders',
+            error: error.message 
+        });
     }
-};
+};;

@@ -28,22 +28,22 @@ const BATCH_INTERVAL = 1000; // 1 segundo entre lotes
 const MAX_RETRIES = 3;
 const MAX_PROCESSING_TIME = 10 * 60 * 1000; // 10 minutos
 
-// Plantilla de mensaje para nuevas propiedades (optimizada para SMS)
+// Plantilla de mensaje para nuevas propiedades (optimizada para SMS - formal, sin emojis)
 const generatePropertyMessage = (property) => {
     const baseUrl = process.env.BASE_URL_FRONTEND || 'http://localhost:5173';
-    const price = property.price?.sale ? `$${Math.round(property.price.sale / 1000)}K` : 'N/A';
+    const price = property.price?.sale ? `$${property.price.sale.toLocaleString()}` : 'Price upon request';
     const beds = property.details?.bedrooms || 'N/A';
     const baths = property.details?.bathrooms || 'N/A';
-    return `🏠 New property: ${property.title}\n${price} | ${beds}bed ${baths}bath\n${property.address?.city || 'Dallas'}\n${baseUrl}/properties/${property._id}`;
+    return `FR Family Investments - New Property Available\n\n${property.title}\nPrice: ${price}\nBedrooms: ${beds} | Bathrooms: ${baths}\nLocation: ${property.address?.city || 'Dallas'}\n\nView details: ${baseUrl}/properties/${property._id}`;
 };
 
 // Plantilla de mensaje para propiedades que vuelven a estar disponibles
 const generateAvailableAgainMessage = (property) => {
     const baseUrl = process.env.BASE_URL_FRONTEND || 'http://localhost:5173';
-    const price = property.price?.sale ? `$${Math.round(property.price.sale / 1000)}K` : 'N/A';
+    const price = property.price?.sale ? `$${property.price.sale.toLocaleString()}` : 'Price upon request';
     const beds = property.details?.bedrooms || 'N/A';
     const baths = property.details?.bathrooms || 'N/A';
-    return `✨ Available again: ${property.title}\n${price} | ${beds}bed ${baths}bath\n${property.address?.city || 'Dallas'}\n${baseUrl}/properties/${property._id}`;
+    return `FR Family Investments - Property Available Again\n\n${property.title}\nPrice: ${price}\nBedrooms: ${beds} | Bathrooms: ${baths}\nLocation: ${property.address?.city || 'Dallas'}\n\nView details: ${baseUrl}/properties/${property._id}`;
 };
 
 // Función para enviar SMS individual con reintentos (con soporte para modo mock)

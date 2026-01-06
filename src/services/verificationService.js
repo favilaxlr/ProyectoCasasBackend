@@ -34,7 +34,7 @@ export const sendVerificationSMS = async (phone, code) => {
     try {
         if (twilioClient && TWILIO_ENABLED) {
             await twilioClient.messages.create({
-                body: `Tu código de verificación para FR Family Investments es: ${code}. Este código expira en 10 minutos.`,
+                body: `FR Family Investments - Verification Code\n\nYour verification code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you did not request this code, please ignore this message.`,
                 from: process.env.TWILIO_PHONE_NUMBER,
                 to: phone
             });
