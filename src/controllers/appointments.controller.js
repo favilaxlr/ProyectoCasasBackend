@@ -640,4 +640,28 @@ export const sendAppointmentReminders = async (req, res) => {
             error: error.message 
         });
     }
-};;
+};
+
+// Función para borrar TODAS las citas (solo para admin - útil para limpiar base de datos)
+export const deleteAllAppointments = async (req, res) => {
+    try {
+        console.log('🗑️  Admin requesting to delete all appointments...');
+        
+        const result = await Appointment.deleteMany({});
+        
+        console.log(`✅ Deleted ${result.deletedCount} appointments`);
+        
+        res.json({
+            success: true,
+            deletedCount: result.deletedCount,
+            message: `Successfully deleted ${result.deletedCount} appointments`
+        });
+    } catch (error) {
+        console.error('❌ Error deleting appointments:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deleting appointments',
+            error: error.message
+        });
+    }
+};

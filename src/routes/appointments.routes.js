@@ -18,7 +18,8 @@ import {
     cancelAppointment,
     getAvailableSlots,
     getUserAppointments,
-    completeAppointment
+    completeAppointment,
+    deleteAllAppointments
 } from '../controllers/appointments.controller.js';
 
 // Importamos los schemas de validación
@@ -44,5 +45,6 @@ router.put('/appointments/:id/confirm', authRequired, isAdminOrCoAdmin, confirmA
 router.put('/appointments/:id/complete', authRequired, isAdminOrCoAdmin, completeAppointment); // Completar cita
 router.put('/appointments/:id/cancel', authRequired, isAdminOrCoAdmin, cancelAppointment); // Cancelar cita
 router.post('/appointments/reminders', authRequired, isAdmin, sendAppointmentReminders); // Enviar recordatorios (solo admin)
+router.delete('/appointments/clear-all', authRequired, isAdmin, deleteAllAppointments); // Borrar todas las citas (solo admin)
 
 export default router;
