@@ -319,9 +319,10 @@ export const verifyUserCode = async (req, res) => {
             email: user.email,
             phone: user.phone,
             profileImage: user.profileImage,
-            role: role.role,
+            role: role,
             isEmailVerified: user.isEmailVerified,
-            isPhoneVerified: user.isPhoneVerified
+            isPhoneVerified: user.isPhoneVerified,
+            token: token // Incluir token en el body
         });
     } catch (error) {
         console.error('❌ Error en verifyUserCode:', error);
