@@ -29,7 +29,9 @@ const app= express();
 app.use(cors({
     origin: [
         process.env.BASE_URL_FRONTEND,
-        process.env.BASE_URL_BACKEND
+        process.env.BASE_URL_BACKEND,
+        'http://192.168.1.79:5173', // IP de red local para acceso desde móvil
+        /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:5173$/ // Permite cualquier IP local en el rango 192.168.x.x
     ],
     credentials: true
 }));
