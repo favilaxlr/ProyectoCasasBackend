@@ -1,5 +1,6 @@
 import multer from 'multer';
 import cloudinary from 'cloudinary';
+import path from 'path';
 
 // Configuración de multer para documentos
 const storage = multer.memoryStorage();
@@ -44,18 +45,49 @@ export const uploadDocumentsToCloudinary = async (req, res, next) => {
                 }
             }
 
+            const sanitizeFilename = (filename) => filename
+                .toLowerCase()
+                .replace(/\s+/g, '-')
+                .replace(/[^a-z0-9-_.]/g, '');
+
+            const getExtensionParts = (filename) => {
+                const ext = path.extname(filename || '').toLowerCase();
+                const sanitizedExt = sanitizeFilename(ext);
+                const extensionWithoutDot = sanitizedExt.startsWith('.')
+                    ? sanitizedExt.slice(1)
+                    : sanitizedExt;
+                return { sanitizedExt, extensionWithoutDot };
+            };
+
             // Subir todos los documentos a Cloudinary
             const uploadedDocuments = [];
             
             for (const file of req.files) {
                 try {
+                    const { sanitizedExt, extensionWithoutDot } = getExtensionParts(file.originalname);
+                    const isPdf = extensionWithoutDot === 'pdf';
+                    const baseName = path.basename(file.originalname, path.extname(file.originalname)) || 'document';
+                    const safeBaseName = sanitizeFilename(baseName) || 'document';
+                    const uniqueSuffix = Date.now();
+                    const publicIdBase = `doc_${safeBaseName}_${uniqueSuffix}`;
+                    const publicId = isPdf
+                        ? publicIdBase
+                        : `${publicIdBase}${sanitizedExt}`;
+
+                    const uploadOptions = {
+                        folder: 'property-documents',
+                        resource_type: isPdf ? 'image' : 'raw',
+                        public_id: publicId,
+                    };
+
+                    if (isPdf) {
+                        uploadOptions.format = 'pdf';
+                        uploadOptions.type = 'upload';
+                    }
+
                     const result = await new Promise((resolve, reject) => {
                         const uploadStream = cloudinary.v2.uploader.upload_stream(
-                            {
-                                folder: 'property-documents',
-                                resource_type: 'raw', // Para documentos no-imagen
-                                public_id: `doc_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-                            },
+                            uploadOptions,
                             (error, result) => {
                                 if (error) reject(error);
                                 else resolve(result);
@@ -89,12 +121,24 @@ export const uploadDocumentsToCloudinary = async (req, res, next) => {
 };
 
 // Middleware para eliminar un documento de Cloudinary
-export const deleteDocumentFromCloudinary = async (publicId) => {
+export const deleteDocumentFromCloudinary = async (publicId, fileType) => {
+    const primaryResource = fileType === 'application/pdf' ? 'image' : 'raw';
+
     try {
-        await cloudinary.v2.uploader.destroy(publicId, { resource_type: 'raw' });
+        await cloudinary.v2.uploader.destroy(publicId, { resource_type: primaryResource });
         return true;
     } catch (error) {
         console.error('Error deleting document from Cloudinary:', error);
+
+        // Intentar con el recurso alternativo si falla la primera vez
+        if (primaryResource === 'image') {
+            try {
+                await cloudinary.v2.uploader.destroy(publicId, { resource_type: 'raw' });
+                return true;
+            } catch (fallbackError) {
+                console.error('Fallback delete failed:', fallbackError);
+            }
+        }
         return false;
     }
 };

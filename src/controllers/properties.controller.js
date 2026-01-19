@@ -508,7 +508,7 @@ export const deleteDocument = async (req, res) => {
         if (document.publicId) {
             try {
                 const { deleteDocumentFromCloudinary } = await import('../middlewares/uploadDocument.js');
-                await deleteDocumentFromCloudinary(document.publicId);
+                await deleteDocumentFromCloudinary(document.publicId, document.fileType);
             } catch (error) {
                 console.error('Error deleting from Cloudinary:', error);
             }
