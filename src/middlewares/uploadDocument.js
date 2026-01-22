@@ -74,16 +74,14 @@ export const uploadDocumentsToCloudinary = async (req, res, next) => {
                         ? publicIdBase
                         : `${publicIdBase}${sanitizedExt}`;
 
+
                     const uploadOptions = {
                         folder: 'property-documents',
-                        resource_type: isPdf ? 'image' : 'raw',
+                        resource_type: 'auto',
                         public_id: publicId,
+                        format: isPdf ? 'pdf' : undefined,
+                        type: 'upload'
                     };
-
-                    if (isPdf) {
-                        uploadOptions.format = 'pdf';
-                        uploadOptions.type = 'upload';
-                    }
 
                     const result = await new Promise((resolve, reject) => {
                         const uploadStream = cloudinary.v2.uploader.upload_stream(
