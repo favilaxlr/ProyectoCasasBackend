@@ -8,28 +8,36 @@ import { TOKEN_SECRET } from '../config.js';
 import dotenv from 'dotenv';
 import { sendVerificationCode, verifyCode } from '../services/verificationService.js';
 
-// Función helper para configurar cookies de autenticación
-const setAuthCookie = (res, token) => {
-    if (process.env.ENVIROMENT === 'local') {
-        res.cookie('token', token, {
-            sameSite: 'lax',
-        });
-    } else {
-        const frontendUrl = new URL(process.env.BASE_URL_FRONTEND);
-        const domain = frontendUrl.hostname;
-        
-        res.cookie('token', token, {
-            sameSite: 'none',
-            secure: true,
-            domain: domain,
-            httpOnly: true,
-            maxAge: 24 * 60 * 60 * 1000 // 24 horas
-        });
+//Configuramos las variables de entorno
+dotenv.config();
+
+const isLocalEnv = process.env.ENVIROMENT === 'local';
+const frontendDomain = !isLocalEnv && process.env.BASE_URL_FRONTEND
+    ? new URL(process.env.BASE_URL_FRONTEND).hostname
+    : undefined;
+
+const getCookieOptions = (overrides = {}) => {
+    const baseOptions = {
+        httpOnly: true,
+        sameSite: isLocalEnv ? 'lax' : 'none',
+        secure: !isLocalEnv,
+        maxAge: 24 * 60 * 60 * 1000
+    };
+
+    if (!isLocalEnv && frontendDomain) {
+        baseOptions.domain = frontendDomain;
     }
+
+    return {
+        ...baseOptions,
+        ...overrides
+    };
 };
 
-//Configuramos las variables de entorno
-dotenv.config()
+// Función helper para configurar cookies de autenticación
+const setAuthCookie = (res, token) => {
+    res.cookie('token', token, getCookieOptions());
+};
 
 //Obtenemos el rol del usuario para el registro  de usuarios
 const roleUser = process.env.SETUP_ROLE_USER;
@@ -114,13 +122,13 @@ export const login = async (req, res)=>{
         });
         if(!userFound)
             return res.status(400)
-                        .json({message: ['Usuario no encontrado']})
+                        .json({message: ['Credenciales inválidas']})
         //Comparar el password que envio el usuario con el de la BD
         const isMatch = await bcrypt.compare(password, userFound.password);
         //Si no lo cocincide el password
         if(!isMatch)
             return res.status(400)
-                        .json({message: ["Password no coincide"]})
+                        .json({message: ["Credenciales inválidas"]})
         
         //Obtener el rol del usuario para verificar si es admin o co-admin
         const role = await Role.findById(userFound.role);
@@ -152,8 +160,7 @@ export const login = async (req, res)=>{
             email: userFound.email,
             phone: userFound.phone,
             profileImage: userFound.profileImage,
-            role: role,
-            token: token // Incluir token en el body para producción
+            role: role
         })
     } catch (error){
         res.status(500)
@@ -164,22 +171,7 @@ export const login = async (req, res)=>{
 
 //Funcion para cerrar sesión
 export const logout = (req,res)=>{
-    if (process.env.ENVIROMENT=='local'){
-        res.cookie('token',"",{
-            expires: new Date(0)
-        })
-    } else {
-        const frontendUrl = new URL(process.env.BASE_URL_FRONTEND);
-        const domain = frontendUrl.hostname;
-        
-        res.cookie('token',"",{
-            expires: new Date(0),
-            sameSite: 'none',
-            secure: true,
-            domain: domain,
-            httpOnly: true
-        })
-    }
+    res.cookie('token', '', getCookieOptions({ expires: new Date(0), maxAge: 0 }));
     //Retornamos 200= OK
     return res.sendStatus(200);
 }
@@ -285,7 +277,7 @@ export const verifyUserCode = async (req, res) => {
                 email: user.email,
                 phone: user.phone,
                 profileImage: user.profileImage,
-                role: role.role,
+                role: role,
                 isEmailVerified: user.isEmailVerified,
                 isPhoneVerified: user.isPhoneVerified
             });
@@ -321,8 +313,7 @@ export const verifyUserCode = async (req, res) => {
             profileImage: user.profileImage,
             role: role,
             isEmailVerified: user.isEmailVerified,
-            isPhoneVerified: user.isPhoneVerified,
-            token: token // Incluir token en el body
+            isPhoneVerified: user.isPhoneVerified
         });
     } catch (error) {
         console.error('❌ Error en verifyUserCode:', error);
