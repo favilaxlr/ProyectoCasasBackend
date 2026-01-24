@@ -12,12 +12,24 @@ const ONE_HOUR_MS = 60 * 60 * 1000;
 export const issueCsrfToken = (req, res) => {
     const csrfToken = crypto.randomBytes(32).toString('hex');
 
-    res.cookie(CSRF_COOKIE_NAME, csrfToken, {
+    const isLocal = process.env.ENVIROMENT === 'local';
+    const cookieOptions = {
         httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: isLocal ? false : true,
+        sameSite: isLocal ? 'lax' : 'none',
         maxAge: ONE_HOUR_MS
-    });
+    };
+
+    if (!isLocal && process.env.BASE_URL_FRONTEND) {
+        try {
+            const frontendUrl = new URL(process.env.BASE_URL_FRONTEND);
+            cookieOptions.domain = frontendUrl.hostname;
+        } catch (error) {
+            console.warn('⚠️ Unable to parse BASE_URL_FRONTEND for CSRF cookie domain:', error.message);
+        }
+    }
+
+    res.cookie(CSRF_COOKIE_NAME, csrfToken, cookieOptions);
 
     return res.json({
         csrfToken,
