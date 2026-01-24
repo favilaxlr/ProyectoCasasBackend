@@ -552,39 +552,35 @@ export const cancelAppointment = async (req, res) => {
 };
 
 // Retrieve available slots for a property/date
-            appointment.status = 'confirmed';
-            appointment.confirmedAt = new Date();
+export const getAvailableSlots = async (req, res) => {
     try {
         const { propertyId, date } = req.query;
-            console.log(`✅ Appointment ${appointment._id} confirmed via link`);
         if (!propertyId || !date) {
             return res.status(400).json({ message: ['propertyId and date are required'] });
         }
 
-        // Generar horarios disponibles (bloques de 30 min)
         const slots = [];
         const targetDate = new Date(date);
         const dayOfWeek = targetDate.getDay();
         
-        let startHour, endHour;
+        let startHour;
+        let endHour;
         
-        if (dayOfWeek >= 1 && dayOfWeek <= 5) { // Lunes a Viernes
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) { // Monday-Friday
             startHour = 9;
             endHour = 18;
-        } else if (dayOfWeek === 6) { // Sábado
+        } else if (dayOfWeek === 6) { // Saturday
             startHour = 10;
             endHour = 14;
-        } else { // Domingo
+        } else { // Sunday
             return res.json({ availableSlots: [] });
         }
         
-        // Generar slots de 30 minutos
         for (let hour = startHour; hour < endHour; hour++) {
-            for (let minute of [0, 30]) {
+            for (const minute of [0, 30]) {
                 const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
                 const timeSlot = `${date}-${timeString}`;
                 
-                // Skip if slot already booked
                 const existingAppointment = await Appointment.findOne({
                     property: propertyId,
                     timeSlot,
@@ -606,7 +602,7 @@ export const cancelAppointment = async (req, res) => {
     }
 };
 
-    // Fetch appointments for the authenticated user
+// Fetch appointments for the authenticated user
 export const getUserAppointments = async (req, res) => {
     try {
         const appointments = await Appointment.find({ user: req.user.id })
