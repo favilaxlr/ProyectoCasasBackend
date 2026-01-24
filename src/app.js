@@ -23,6 +23,7 @@ import reviewRoutes from './routes/reviews.routes.js';
 import notificationRoutes from './routes/notifications.routes.js';
 //Importamos las rutas para ofertas
 import offerRoutes from './routes/offers.routes.js';
+import { issueCsrfToken, csrfProtection } from './middlewares/csrfProtection.js';
 
 const app= express();
 
@@ -40,6 +41,10 @@ app.use(express.json());
 app.use(cookieParser());//Cookie en formto Json
 //Recibir imagenes en el req.body
 app.use(express.urlencoded({extended: true})); //Importante para webhooks de Twilio
+
+// CSRF protection (double submit cookie strategy)
+app.get('/api/csrf-token', issueCsrfToken);
+app.use(csrfProtection);
 
 //Indicamos al servidor que utilice las rutas del objeto authRoutes
 app.use('/api/', authRoutes);
