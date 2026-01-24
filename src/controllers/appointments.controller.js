@@ -14,8 +14,9 @@ const notifyAssignedAdmin = async (appointment, property) => {
     try {
         const admin = await User.findById(appointment.assignedTo);
         if (!admin || !admin.phone) return;
-        
-        const message = `CITA CONFIRMADA - ${appointment.visitor.name} confirmó su cita para "${property.title}" el ${new Date(appointment.appointmentDate).toLocaleDateString('es-MX')} a las ${appointment.appointmentTime}. Contacto: ${appointment.visitor.phone}`;
+
+        const formattedDate = new Date(appointment.appointmentDate).toLocaleDateString('en-US');
+        const message = `APPOINTMENT CONFIRMED - ${appointment.visitor.name} confirmed their visit for "${property.title}" on ${formattedDate} at ${appointment.appointmentTime}. Contact: ${appointment.visitor.phone}`;
         
         await client.messages.create({
             body: message,
@@ -57,7 +58,7 @@ const sendConfirmationSMS = async (phone, appointmentId, confirmationCode, prope
     
     try {
         const confirmLink = `${process.env.BASE_URL_FRONTEND}/confirm-appointment/${appointmentId}/${confirmationCode}`;
-        const message = `Confirma tu cita para "${propertyTitle}" el ${appointmentDate} a las ${appointmentTime}. Haz clic para confirmar: ${confirmLink}`;
+        const message = `Confirm your appointment for "${propertyTitle}" on ${appointmentDate} at ${appointmentTime}. Tap the link to confirm: ${confirmLink}`;
         
         await client.messages.create({
             body: message,
@@ -295,7 +296,7 @@ export const twilioWebhook = async (req, res) => {
             // Responder al usuario
             const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Message>¡Gracias! Tu cita para "${appointment.property.title}" está confirmada. Te esperamos el ${new Date(appointment.appointmentDate).toLocaleDateString('es-MX')} a las ${appointment.appointmentTime}.</Message>
+    <Message>Thank you! Your appointment for "${appointment.property.title}" is confirmed. We look forward to seeing you on ${new Date(appointment.appointmentDate).toLocaleDateString('en-US')} at ${appointment.appointmentTime}.</Message>
 </Response>`;
             
             return res.status(200).type('text/xml').send(twimlResponse);
@@ -308,7 +309,7 @@ export const twilioWebhook = async (req, res) => {
             
             const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Message>Entendido. Tu cita ha sido cancelada. Puedes agendar otra en cualquier momento.</Message>
+    <Message>Understood. Your appointment has been cancelled. You can schedule a new visit at any time.</Message>
 </Response>`;
             
             return res.status(200).type('text/xml').send(twimlResponse);
@@ -316,7 +317,7 @@ export const twilioWebhook = async (req, res) => {
             // Respuesta no reconocida
             const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Message>Por favor usa el enlace que te enviamos para confirmar tu cita. Si necesitas cancelar, puedes hacerlo desde tu cuenta.</Message>
+    <Message>Please use the link we sent to confirm your appointment. If you need to cancel, you can manage it from your account.</Message>
 </Response>`;
             
             return res.status(200).type('text/xml').send(twimlResponse);
@@ -449,13 +450,13 @@ export const assignAppointment = async (req, res) => {
         // Enviar SMS de confirmación al cliente
         if (client && appointment.visitor && appointment.visitor.phone) {
             try {
-                const fechaCita = new Date(appointment.appointmentDate).toLocaleDateString('es-MX');
-                
+                const fechaCita = new Date(appointment.appointmentDate).toLocaleDateString('en-US');
+
                 const direccion = appointment.property.address 
                     ? `${appointment.property.address.street}, ${appointment.property.address.city}`
-                    : 'Por confirmar';
-                
-                const message = `FR Family Investments - Tu cita para "${appointment.property.title}" esta confirmada. Fecha: ${fechaCita} a las ${appointment.appointmentTime}. Te atendera: ${admin.username}. Direccion: ${direccion}`;
+                    : 'To be confirmed';
+
+                const message = `FR Family Investments - Your appointment for "${appointment.property.title}" is confirmed. Date: ${fechaCita} at ${appointment.appointmentTime}. Agent: ${admin.username}. Address: ${direccion}`;
                 
                 console.log('📤 Intentando enviar SMS...');
                 console.log('📱 Destino:', appointment.visitor.phone);
