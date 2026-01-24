@@ -6,20 +6,20 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Configurar Twilio solo si las credenciales están disponibles
+// Configure Twilio only if credentials are present
 let client = null;
 const TWILIO_ENABLED = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID !== 'your_account_sid_here';
 
 if (TWILIO_ENABLED) {
     try {
         client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-        console.log('✅ Twilio configurado correctamente');
+        console.log('✅ Twilio configured successfully');
     } catch (error) {
-        console.error('❌ Error configurando Twilio:', error.message);
-        console.log('💡 El sistema funcionará en modo mock (sin enviar SMS reales)');
+        console.error('❌ Error configuring Twilio:', error.message);
+        console.log('💡 System will run in mock mode (no real SMS)');
     }
 } else {
-    console.log('💡 Modo MOCK activado: Se simularán envíos de SMS');
+    console.log('💡 Mock mode enabled: SMS deliveries will be simulated');
 }
 
 // Configuración del sistema
@@ -28,7 +28,7 @@ const BATCH_INTERVAL = 1000; // 1 segundo entre lotes
 const MAX_RETRIES = 3;
 const MAX_PROCESSING_TIME = 10 * 60 * 1000; // 10 minutos
 
-// Plantilla de mensaje para nuevas propiedades (optimizada para SMS - formal, sin emojis)
+// Message template for new properties (SMS optimized, formal tone)
 const generatePropertyMessage = (property) => {
     const baseUrl = process.env.BASE_URL_FRONTEND || 'http://localhost:5173';
     const price = property.price?.sale ? `$${property.price.sale.toLocaleString()}` : 'Price upon request';
@@ -37,7 +37,7 @@ const generatePropertyMessage = (property) => {
     return `FR Family Investments - New Property Available\n\n${property.title}\nPrice: ${price}\nBedrooms: ${beds} | Bathrooms: ${baths}\nLocation: ${property.address?.city || 'Dallas'}\n\nView details: ${baseUrl}/properties/${property._id}`;
 };
 
-// Plantilla de mensaje para propiedades que vuelven a estar disponibles
+// Message template for properties that become available again
 const generateAvailableAgainMessage = (property) => {
     const baseUrl = process.env.BASE_URL_FRONTEND || 'http://localhost:5173';
     const price = property.price?.sale ? `$${property.price.sale.toLocaleString()}` : 'Price upon request';
@@ -46,7 +46,7 @@ const generateAvailableAgainMessage = (property) => {
     return `FR Family Investments - Property Available Again\n\n${property.title}\nPrice: ${price}\nBedrooms: ${beds} | Bathrooms: ${baths}\nLocation: ${property.address?.city || 'Dallas'}\n\nView details: ${baseUrl}/properties/${property._id}`;
 };
 
-// Función para enviar SMS individual con reintentos (con soporte para modo mock)
+// Send an individual SMS with retry + mock support
 const sendSMSWithRetry = async (phone, message, retries = MAX_RETRIES) => {
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
@@ -57,36 +57,36 @@ const sendSMSWithRetry = async (phone, message, retries = MAX_RETRIES) => {
                     from: process.env.TWILIO_PHONE_NUMBER,
                     to: phone
                 });
-                console.log(`📱 SMS enviado a ${phone} - SID: ${result.sid} - Status: ${result.status}`);
+                console.log(`📱 SMS sent to ${phone} - SID: ${result.sid} - Status: ${result.status}`);
                 return { success: true, phone, mode: 'twilio', sid: result.sid, status: result.status };
             } else {
-                // Modo mock: simular envío exitoso el 95% de las veces
+                // Mock mode: 95% success rate simulation
                 const mockSuccess = Math.random() > 0.05;
                 if (mockSuccess) {
-                    // Simular latencia de red
+                    // Simulate network latency
                     await new Promise(resolve => setTimeout(resolve, Math.random() * 100));
                     return { success: true, phone, mode: 'mock' };
                 } else {
-                    throw new Error('Simulación de fallo en modo mock');
+                    throw new Error('Mock failure simulation');
                 }
             }
         } catch (error) {
-            console.error(`❌ Error enviando SMS a ${phone} (intento ${attempt}/${retries}):`, error.message);
+            console.error(`❌ Error sending SMS to ${phone} (attempt ${attempt}/${retries}):`, error.message);
             if (attempt === retries) {
                 return { 
                     success: false, 
                     phone, 
-                    error: error.message || 'Error desconocido',
+                    error: error.message || 'Unknown error',
                     mode: TWILIO_ENABLED ? 'twilio' : 'mock'
                 };
             }
-            // Esperar antes del siguiente intento
+            // Wait before retrying
             await new Promise(resolve => setTimeout(resolve, 500 * attempt));
         }
     }
 };
 
-// Función para procesar lotes de usuarios
+// Process a batch of users
 const processBatch = async (users, message) => {
     const results = await Promise.all(
         users.map(user => 
@@ -108,23 +108,23 @@ const processBatch = async (users, message) => {
     };
 };
 
-// Función para notificar cuando una propiedad vuelve a estar disponible
+// Notify when a property becomes available again
 export const sendPropertyAvailableNotification = async (property, changedBy) => {
     const message = generateAvailableAgainMessage(property);
     return await sendMassNotification(property, changedBy, message, 'available_again');
 };
 
-// Función principal para envío masivo
+// Main mass-notification workflow
 export const sendMassNotification = async (property, createdBy, customMessage = null, notificationType = 'new_property') => {
     const startTime = new Date();
     let notification;
     
     try {
-        // 1. Obtener el ObjectId del rol 'admin' para excluirlo
+        // 1. Fetch the 'admin' role ID to exclude admins
         const adminRole = await Role.findOne({ role: 'admin' });
         const adminRoleId = adminRole?._id;
         
-        // 2. Obtener todos los usuarios VERIFICADOS con teléfono válido (excluyendo admins)
+        // 2. Load verified users with valid phone numbers (excluding admins)
         const userQuery = {
             phone: { $exists: true, $ne: '' },
             isEmailVerified: true,
@@ -139,19 +139,19 @@ export const sendMassNotification = async (property, createdBy, customMessage = 
         const users = await User.find(userQuery).select('phone username');
 
         if (users.length === 0) {
-            throw new Error('No hay usuarios verificados para notificar');
+            throw new Error('No verified users to notify');
         }
 
-        // 3. Generar mensaje
+        // 3. Build message template
         const message = generatePropertyMessage(property);
 
         console.log('\n📢 ============================================');
-        console.log('🏠 Iniciando envío de notificaciones masivas...');
-        console.log(`📊 Total usuarios a notificar: ${users.length}`);
-        console.log(`📝 Mensaje: ${message.substring(0, 50)}...`);
+        console.log('🏠 Starting mass SMS notification batch...');
+        console.log(`📊 Users to notify: ${users.length}`);
+        console.log(`📝 Message: ${message.substring(0, 50)}...`);
         console.log('📢 ============================================\n');
 
-        // 4. Crear registro de notificación
+        // 4. Create notification record
         notification = new Notification({
             type: 'new_property',
             property: property._id,
@@ -172,16 +172,16 @@ export const sendMassNotification = async (property, createdBy, customMessage = 
 
         await notification.save();
 
-        // 5. Procesar en lotes
+        // 5. Process in batches
         let totalSent = 0;
         let totalFailed = 0;
         const invalidNumbers = [];
         const allResults = [];
 
         for (let i = 0; i < users.length; i += BATCH_SIZE) {
-            // Verificar tiempo máximo de procesamiento
+            // Enforce max processing time
             if (Date.now() - startTime.getTime() > MAX_PROCESSING_TIME) {
-                throw new Error('Tiempo máximo de procesamiento excedido');
+                throw new Error('Maximum processing time exceeded');
             }
 
             const batch = users.slice(i, i + BATCH_SIZE);
@@ -191,18 +191,18 @@ export const sendMassNotification = async (property, createdBy, customMessage = 
             totalFailed += batchResults.failed.length;
             allResults.push(...batchResults.all);
             
-            // Registrar números inválidos
+            // Track invalid numbers
             batchResults.failed.forEach(failed => {
                 invalidNumbers.push({
                     phone: failed.phone,
                     error: failed.error
                 });
-                console.log(`❌ Fallo: ${failed.user?.username} (${failed.phone}) - ${failed.error}`);
+                console.log(`❌ Failed: ${failed.user?.username} (${failed.phone}) - ${failed.error}`);
             });
 
-            // Log de éxitos
+            // Success log
             batchResults.sent.forEach(sent => {
-                console.log(`✅ Enviado: ${sent.user?.username} (${sent.phone})`);
+                console.log(`✅ Sent: ${sent.user?.username} (${sent.phone})`);
             });
 
             // Actualizar progreso en base de datos
@@ -213,7 +213,7 @@ export const sendMassNotification = async (property, createdBy, customMessage = 
                 results: allResults
             });
 
-            // Pausa entre lotes (excepto en el último)
+            // Pause between batches (except final batch)
             if (i + BATCH_SIZE < users.length) {
                 await new Promise(resolve => setTimeout(resolve, BATCH_INTERVAL));
             }
@@ -234,10 +234,10 @@ export const sendMassNotification = async (property, createdBy, customMessage = 
         });
 
         console.log('\n📢 ============================================');
-        console.log('✅ Notificaciones completadas');
-        console.log(`📊 Enviados: ${totalSent}/${users.length}`);
-        console.log(`❌ Fallidos: ${totalFailed}/${users.length}`);
-        console.log(`⏱️  Duración: ${duration}s`);
+        console.log('✅ Notifications completed');
+        console.log(`📊 Sent: ${totalSent}/${users.length}`);
+        console.log(`❌ Failed: ${totalFailed}/${users.length}`);
+        console.log(`⏱️  Duration: ${duration}s`);
         console.log('📢 ============================================\n');
 
         return {
@@ -252,7 +252,7 @@ export const sendMassNotification = async (property, createdBy, customMessage = 
         };
 
     } catch (error) {
-        console.error('Error en envío masivo:', error);
+        console.error('Error during mass notification:', error);
         
         // Marcar como fallido si existe el registro
         if (notification) {
@@ -294,7 +294,7 @@ export const resendFailedNotifications = async (notificationId) => {
         .populate('property');
 
     if (!notification || notification.stats.invalidNumbers.length === 0) {
-        throw new Error('No hay destinatarios fallidos para reenviar');
+        throw new Error('No failed recipients to retry');
     }
 
     const message = notification.message;

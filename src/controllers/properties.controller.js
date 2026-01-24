@@ -106,13 +106,13 @@ export const createProperty = async (req, res) => {
         
         // ENVÍO AUTOMÁTICO DE NOTIFICACIONES MASIVAS
         try {
-            // Solo enviar si Twilio está configurado
+            // Only send notifications when Twilio is configured
             if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID !== 'your_account_sid_here') {
-                console.log('Iniciando envío de notificaciones masivas...');
+                console.log('Starting mass notification dispatch...');
                 const notificationResult = await sendMassNotification(savedProperty, req.user.id);
-                console.log('Notificaciones enviadas:', notificationResult.stats);
+                console.log('Notifications sent:', notificationResult.stats);
             } else {
-                console.log('Twilio no configurado - saltando notificaciones SMS');
+                console.log('Twilio not configured - skipping SMS notifications');
             }
         } catch (notificationError) {
             console.error('Error en notificaciones masivas:', notificationError);

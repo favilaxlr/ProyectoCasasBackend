@@ -20,7 +20,7 @@ if (TWILIO_ENABLED) {
     try {
         twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
     } catch (error) {
-        console.error('❌ Error configurando Twilio para verificación:', error.message);
+        console.error('❌ Error configuring Twilio for verification:', error.message);
     }
 }
 
@@ -38,15 +38,15 @@ export const sendVerificationSMS = async (phone, code) => {
                 from: process.env.TWILIO_PHONE_NUMBER,
                 to: phone
             });
-            console.log(`✅ SMS de verificación enviado a ${phone}`);
+            console.log(`✅ Verification SMS sent to ${phone}`);
             return { success: true, mode: 'twilio' };
         } else {
-            // Modo mock
-            console.log(`📱 [MOCK] SMS de verificación enviado a ${phone}: ${code}`);
+            // Mock mode
+            console.log(`📱 [MOCK] Verification SMS sent to ${phone}: ${code}`);
             return { success: true, mode: 'mock' };
         }
     } catch (error) {
-        console.error('❌ Error enviando SMS de verificación:', error.message);
+        console.error('❌ Error sending verification SMS:', error.message);
         return { success: false, error: error.message };
     }
 };
@@ -87,13 +87,13 @@ export const sendVerificationEmail = async (email, code, username) => {
             return { success: true, mode: 'mock' };
         }
     } catch (error) {
-        console.error('❌ Error enviando email de verificación:', error.message);
-        console.error('📋 Error completo:', error.response?.body || error);
+        console.error('❌ Error sending verification email:', error.message);
+        console.error('📋 Full error:', error.response?.body || error);
         
-        // SOLUCIÓN TEMPORAL: Mostrar código en consola si falla el envío
+        // Temporary solution: log code if email fails
         console.log('🔐 ============================================');
         console.log(`📧 Email: ${email}`);
-        console.log(`🔑 CÓDIGO DE VERIFICACIÓN: ${code}`);
+        console.log(`🔑 VERIFICATION CODE: ${code}`);
         console.log('🔐 ============================================');
         
         return { success: false, error: error.message };
@@ -119,11 +119,11 @@ export const sendVerificationCode = async (user) => {
     // Si el SMS falla pero el email se envía, aún considerarlo éxito parcial
     const atLeastOneSuccess = smsResult.success || emailResult.success;
 
-    // SIEMPRE mostrar el código en consola para desarrollo/debugging
+    // Always log code for debugging in development
     console.log('\n🔐 ============================================');
     console.log(`📧 Email: ${user.email}`);
     console.log(`📱 Phone: ${user.phone}`);
-    console.log(`🔑 CÓDIGO DE VERIFICACIÓN: ${code}`);
+    console.log(`🔑 VERIFICATION CODE: ${code}`);
     console.log('🔐 ============================================\n');
 
     return {
@@ -149,11 +149,11 @@ export const verifyCode = async (user, code) => {
     }
 
     if (user.verificationCodeExpiry < new Date()) {
-        return { success: false, message: 'El código ha expirado. Solicita uno nuevo' };
+        return { success: false, message: 'The code has expired. Request a new one.' };
     }
 
     if (user.verificationCode !== code) {
-        return { success: false, message: 'Código incorrecto' };
+        return { success: false, message: 'Incorrect code' };
     }
 
     // Código válido - marcar email como verificado siempre
@@ -166,7 +166,7 @@ export const verifyCode = async (user, code) => {
 
     return { 
         success: true, 
-        message: 'Verificación completada exitosamente',
+        message: 'Verification completed successfully',
         user: {
             id: user._id,
             username: user.username,
