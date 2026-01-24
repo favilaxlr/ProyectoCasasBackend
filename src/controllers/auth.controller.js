@@ -13,15 +13,16 @@ const setAuthCookie = (res, token) => {
     if (process.env.ENVIROMENT === 'local') {
         res.cookie('token', token, {
             sameSite: 'lax',
+            secure: false,
+            httpOnly: true
         });
     } else {
-        const frontendUrl = new URL(process.env.BASE_URL_FRONTEND);
-        const domain = frontendUrl.hostname;
+        const cookieDomain = process.env.AUTH_COOKIE_DOMAIN?.trim();
         
         res.cookie('token', token, {
             sameSite: 'none',
             secure: true,
-            domain: domain,
+            domain: cookieDomain || undefined,
             httpOnly: true,
             maxAge: 24 * 60 * 60 * 1000 // 24 horas
         });
@@ -164,21 +165,23 @@ export const login = async (req, res)=>{
 
 //Funcion para cerrar sesión
 export const logout = (req,res)=>{
-    if (process.env.ENVIROMENT=='local'){
-        res.cookie('token',"",{
+    if (process.env.ENVIROMENT === 'local') {
+        res.cookie('token', "", {
+            sameSite: 'lax',
+            secure: false,
+            httpOnly: true,
             expires: new Date(0)
-        })
+        });
     } else {
-        const frontendUrl = new URL(process.env.BASE_URL_FRONTEND);
-        const domain = frontendUrl.hostname;
-        
-        res.cookie('token',"",{
-            expires: new Date(0),
+        const cookieDomain = process.env.AUTH_COOKIE_DOMAIN?.trim();
+
+        res.cookie('token', "", {
             sameSite: 'none',
             secure: true,
-            domain: domain,
-            httpOnly: true
-        })
+            domain: cookieDomain || undefined,
+            httpOnly: true,
+            expires: new Date(0)
+        });
     }
     //Retornamos 200= OK
     return res.sendStatus(200);

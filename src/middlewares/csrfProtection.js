@@ -20,13 +20,8 @@ export const issueCsrfToken = (req, res) => {
         maxAge: ONE_HOUR_MS
     };
 
-    if (!isLocal && process.env.BASE_URL_FRONTEND) {
-        try {
-            const frontendUrl = new URL(process.env.BASE_URL_FRONTEND);
-            cookieOptions.domain = frontendUrl.hostname;
-        } catch (error) {
-            console.warn('⚠️ Unable to parse BASE_URL_FRONTEND for CSRF cookie domain:', error.message);
-        }
+    if (process.env.CSRF_COOKIE_DOMAIN) {
+        cookieOptions.domain = process.env.CSRF_COOKIE_DOMAIN.trim();
     }
 
     res.cookie(CSRF_COOKIE_NAME, csrfToken, cookieOptions);
