@@ -213,10 +213,18 @@ export const profile = async (req, res)=>{
 
 //Función para validar el token de inicio de sesión
 export const verifyToken = async (req, res)=>{
-    const {token} = req.cookies;
-    if (!token)
+    let token = req.cookies?.token;
+    if (!token) {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.substring(7);
+        }
+    }
+
+    if (!token) {
         return res.status(400)
-                    .json({message: ["No autorizado"]});
+            .json({message: ["No autorizado"]});
+    }
 
     jwt.verify(token, TOKEN_SECRET, async (err, user)=>{
         if (err) //Hay error al validar el token
