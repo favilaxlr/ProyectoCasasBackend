@@ -6,6 +6,7 @@ import {
     getUserOffers,
     getUserOffer,
     sendMessage,
+    cancelUserOffer,
     checkExistingOffer,
     getPendingOffers,
     getMyAssignedOffers,
@@ -33,6 +34,9 @@ router.get('/offers/my-offers/:id', authRequired, getUserOffer);
 
 // Enviar un mensaje en una oferta del usuario
 router.post('/offers/my-offers/:id/messages', authRequired, sendMessage);
+
+// Cancelar una oferta del usuario
+router.put('/offers/my-offers/:id/cancel', authRequired, cancelUserOffer);
 
 // ========== ADMIN/CO-ADMIN ROUTES ==========
 // Obtener todas las ofertas pendientes (no asignadas)

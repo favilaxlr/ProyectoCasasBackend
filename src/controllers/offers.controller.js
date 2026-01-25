@@ -174,6 +174,36 @@ export const sendMessage = async (req, res) => {
     }
 };
 
+// Cancelar una oferta (usuario)
+export const cancelUserOffer = async (req, res) => {
+    try {
+        const offer = await Offer.findOne({
+            _id: req.params.id,
+            user: req.user.id
+        });
+
+        if (!offer) {
+            return res.status(404).json({ message: ['Offer not found'] });
+        }
+
+        if (!['pending', 'in_progress'].includes(offer.status)) {
+            return res.status(400).json({ message: ['Only pending or in-progress offers can be cancelled'] });
+        }
+
+        offer.status = 'closed';
+        offer.unreadCount = offer.unreadCount || { user: 0, admin: 0 };
+        await offer.save();
+
+        await offer.populate('property', 'title address images price status');
+        await offer.populate('assignedTo', 'username profileImage');
+
+        res.json(offer);
+    } catch (error) {
+        console.error('Error cancelling offer:', error);
+        res.status(500).json({ message: ['Error cancelling offer'] });
+    }
+};
+
 // ========== ADMIN/CO-ADMIN ENDPOINTS ==========
 
 // Obtener todas las ofertas pendientes (no asignadas)
