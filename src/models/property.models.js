@@ -109,6 +109,27 @@ const propertySchema = new mongoose.Schema(
             },
             caption: String
         }],
+
+        // Videos promocionales
+        videos: [{
+            url: {
+                type: String,
+                required: true
+            },
+            publicId: String,
+            thumbnailUrl: String,
+            duration: Number,
+            format: String,
+            bytes: Number,
+            uploadedAt: {
+                type: Date,
+                default: Date.now
+            },
+            uploadedBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User'
+            }
+        }],
         
         // Documentos (PDFs, Word, etc.)
         documents: [{

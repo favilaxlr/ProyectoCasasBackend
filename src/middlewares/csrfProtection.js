@@ -2,7 +2,7 @@ import crypto from 'crypto';
 
 const CSRF_COOKIE_NAME = 'csrfToken';
 const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS', 'TRACE'];
-const ONE_HOUR_MS = 60 * 60 * 1000;
+const TOKEN_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 /**
  * Issues a CSRF token using the double-submit-cookie pattern.
@@ -14,10 +14,11 @@ export const issueCsrfToken = (req, res) => {
 
     const isLocal = process.env.ENVIROMENT === 'local';
     const cookieOptions = {
-        httpOnly: false,
+        httpOnly: true,
         secure: isLocal ? false : true,
         sameSite: isLocal ? 'lax' : 'none',
-        maxAge: ONE_HOUR_MS
+        maxAge: TOKEN_TTL_MS,
+        path: '/'
     };
 
     if (process.env.CSRF_COOKIE_DOMAIN) {

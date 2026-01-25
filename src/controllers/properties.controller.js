@@ -165,6 +165,15 @@ export const deleteProperty = async (req, res) => {
             }
         }
 
+        // Eliminar todos los videos asociados
+        if (property.videos && property.videos.length > 0) {
+            for (const video of property.videos) {
+                if (video.publicId) {
+                    await cloudinary.uploader.destroy(video.publicId, { resource_type: 'video' });
+                }
+            }
+        }
+
         const deletedProperty = await Property.findByIdAndDelete(req.params.id);
         if (!deletedProperty) {
             return res.status(404)
@@ -524,5 +533,74 @@ export const deleteDocument = async (req, res) => {
     } catch (error) {
         console.error('Error deleting document:', error);
         res.status(500).json({ message: ['Error deleting document'] });
+    }
+};
+
+// ========== VIDEO MANAGEMENT ==========
+
+export const addVideos = async (req, res) => {
+    try {
+        const property = await Property.findById(req.params.id);
+
+        if (!property) {
+            return res.status(404).json({ message: ['Property not found'] });
+        }
+
+        if (!req.uploadedVideos || req.uploadedVideos.length === 0) {
+            return res.status(400).json({ message: ['No videos uploaded'] });
+        }
+
+        const videosWithMeta = req.uploadedVideos.map(video => ({
+            ...video,
+            uploadedBy: req.user.id,
+            uploadedAt: new Date()
+        }));
+
+        property.videos = [...(property.videos || []), ...videosWithMeta];
+        await property.save();
+
+        res.json({
+            message: 'Videos uploaded successfully',
+            videos: property.videos
+        });
+    } catch (error) {
+        console.error('Error adding videos:', error);
+        res.status(500).json({ message: ['Error uploading videos'] });
+    }
+};
+
+export const deleteVideo = async (req, res) => {
+    try {
+        const { id, videoId } = req.params;
+        const property = await Property.findById(id);
+
+        if (!property) {
+            return res.status(404).json({ message: ['Property not found'] });
+        }
+
+        const videoIndex = property.videos.findIndex(video => video._id.toString() === videoId);
+        if (videoIndex === -1) {
+            return res.status(404).json({ message: ['Video not found'] });
+        }
+
+        const [video] = property.videos.splice(videoIndex, 1);
+
+        if (video?.publicId) {
+            try {
+                await cloudinary.uploader.destroy(video.publicId, { resource_type: 'video' });
+            } catch (error) {
+                console.error('Error deleting video from Cloudinary:', error);
+            }
+        }
+
+        await property.save();
+
+        res.json({
+            message: 'Video deleted successfully',
+            videos: property.videos
+        });
+    } catch (error) {
+        console.error('Error deleting video:', error);
+        res.status(500).json({ message: ['Error deleting video'] });
     }
 };
