@@ -1,6 +1,7 @@
 import sgMail from '@sendgrid/mail';
 import twilio from 'twilio';
 import dotenv from 'dotenv';
+import { getTwilioSenderConfig } from '../libs/twilioSender.js';
 
 dotenv.config();
 
@@ -35,8 +36,8 @@ export const sendVerificationSMS = async (phone, code) => {
         if (twilioClient && TWILIO_ENABLED) {
             await twilioClient.messages.create({
                 body: `FR Family Investments - Verification Code\n\nYour verification code is: ${code}\n\nThis code will expire in 10 minutes.\n\nIf you did not request this code, please ignore this message.`,
-                from: process.env.TWILIO_PHONE_NUMBER,
-                to: phone
+                to: phone,
+                ...getTwilioSenderConfig()
             });
             console.log(`✅ Verification SMS sent to ${phone}`);
             return { success: true, mode: 'twilio' };

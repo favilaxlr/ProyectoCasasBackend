@@ -3,6 +3,7 @@ import User from '../models/user.models.js';
 import Role from '../models/roles.models.js';
 import Notification from '../models/notification.models.js';
 import dotenv from 'dotenv';
+import { getTwilioSenderConfig } from '../libs/twilioSender.js';
 
 dotenv.config();
 
@@ -54,8 +55,8 @@ const sendSMSWithRetry = async (phone, message, retries = MAX_RETRIES) => {
             if (client && TWILIO_ENABLED) {
                 const result = await client.messages.create({
                     body: message,
-                    from: process.env.TWILIO_PHONE_NUMBER,
-                    to: phone
+                    to: phone,
+                    ...getTwilioSenderConfig()
                 });
                 console.log(`📱 SMS sent to ${phone} - SID: ${result.sid} - Status: ${result.status}`);
                 return { success: true, phone, mode: 'twilio', sid: result.sid, status: result.status };

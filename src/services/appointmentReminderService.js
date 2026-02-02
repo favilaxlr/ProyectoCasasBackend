@@ -3,6 +3,7 @@ import Appointment from '../models/appointment.models.js';
 import User from '../models/user.models.js';
 import Property from '../models/property.models.js';
 import dotenv from 'dotenv';
+import { getTwilioSenderConfig } from '../libs/twilioSender.js';
 
 dotenv.config();
 
@@ -54,8 +55,8 @@ Thank you.`;
     try {
         const result = await twilioClient.messages.create({
             body: message,
-            from: process.env.TWILIO_PHONE_NUMBER,
-            to: appointment.visitor.phone
+            to: appointment.visitor.phone,
+            ...getTwilioSenderConfig()
         });
 
         console.log(`✅ Client reminder sent to ${appointment.visitor.phone} - SID: ${result.sid}`);
@@ -103,8 +104,8 @@ Please be prepared and on time.`;
     try {
         const result = await twilioClient.messages.create({
             body: message,
-            from: process.env.TWILIO_PHONE_NUMBER,
-            to: admin.phone
+            to: admin.phone,
+            ...getTwilioSenderConfig()
         });
 
         console.log(`✅ Admin reminder sent to ${admin.phone} - SID: ${result.sid}`);

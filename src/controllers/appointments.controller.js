@@ -1,9 +1,11 @@
 import Appointment from '../models/appointment.models.js';
 import Property from '../models/property.models.js';
 import User from '../models/user.models.js';
+import Role from '../models/roles.models.js';
 import twilio from 'twilio';
 import dotenv from 'dotenv';
 import { checkAndSendReminders } from '../services/appointmentReminderService.js';
+import { getTwilioSenderConfig } from '../libs/twilioSender.js';
 
 dotenv.config();
 
@@ -20,8 +22,8 @@ const notifyAssignedAdmin = async (appointment, property) => {
         
         await client.messages.create({
             body: message,
-            from: process.env.TWILIO_PHONE_NUMBER,
-            to: admin.phone
+            to: admin.phone,
+            ...getTwilioSenderConfig()
         });
         
         console.log(`📲 Notification sent to admin ${admin.username}`);
@@ -44,6 +46,66 @@ if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID !== 'your_a
     console.warn('⚠️ Twilio NOT configured - missing credentials');
 }
 
+const notifyAdminsOfNewAppointment = async (appointment, property, visitor) => {
+    if (!client) {
+        console.log('Twilio not configured - skipping admin notifications');
+        return;
+    }
+
+    try {
+        const adminRoles = await Role.find({ role: { $in: ['admin', 'co-admin'] } }).select('_id role');
+        if (!adminRoles.length) {
+            console.log('No admin or co-admin roles found for SMS notifications');
+            return;
+        }
+
+        const adminRoleIds = adminRoles.map(role => role._id);
+        const recipients = await User.find({
+            role: { $in: adminRoleIds },
+            phone: { $exists: true, $ne: '' }
+        }).select('username phone');
+
+        if (!recipients.length) {
+            console.log('No admin recipients available for appointment notification');
+            return;
+        }
+
+        const visitorName = visitor?.username || appointment.visitor?.name || 'A client';
+        const visitorPhone = visitor?.phone || appointment.visitor?.phone || 'N/A';
+        const visitorEmail = visitor?.email || appointment.visitor?.email || 'N/A';
+
+        const appointmentDate = new Date(appointment.appointmentDate);
+        const formattedDate = appointmentDate.toLocaleDateString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+
+        const baseUrl = process.env.BASE_URL_FRONTEND || 'http://localhost:5173';
+        const homeLink = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+
+        const smsBody = `FR Family Investments - New Appointment\n\n${visitorName} just scheduled a visit for "${property.title}" on ${formattedDate} at ${appointment.appointmentTime}.\nPhone: ${visitorPhone}\nEmail: ${visitorEmail}\n\nHome: ${homeLink}`;
+
+        await Promise.all(
+            recipients.map(async recipient => {
+                try {
+                    await client.messages.create({
+                        body: smsBody,
+                        to: recipient.phone,
+                        ...getTwilioSenderConfig()
+                    });
+                    console.log(`📲 Admin notification sent to ${recipient.username}`);
+                } catch (smsError) {
+                    console.error(`❌ Error sending admin notification to ${recipient.username}:`, smsError.message);
+                }
+            })
+        );
+    } catch (error) {
+        console.error('❌ Error notifying admins about new appointment:', error.message);
+    }
+};
+
 // Generar código de confirmación único
 const generateConfirmationCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -62,8 +124,8 @@ const sendConfirmationSMS = async (phone, appointmentId, confirmationCode, prope
         
         await client.messages.create({
             body: message,
-            from: process.env.TWILIO_PHONE_NUMBER,
-            to: phone
+            to: phone,
+            ...getTwilioSenderConfig()
         });
         
         console.log(`📱 Confirmation link SMS sent to ${phone}`);
@@ -188,6 +250,8 @@ export const createAppointment = async (req, res) => {
             'Appointment created. A confirmation SMS was sent to your phone.' :
             'Appointment created and auto-confirmed. (Confirmation SMS unavailable for your region)';
         
+        await notifyAdminsOfNewAppointment(savedAppointment, property, user);
+
         res.json({
             message: responseMessage,
             appointment: savedAppointment,
@@ -464,8 +528,8 @@ export const assignAppointment = async (req, res) => {
                 
                 const result = await client.messages.create({
                     body: message,
-                    from: process.env.TWILIO_PHONE_NUMBER,
-                    to: appointment.visitor.phone
+                    to: appointment.visitor.phone,
+                    ...getTwilioSenderConfig()
                 });
                 
                 console.log(`✅ SMS enviado exitosamente - SID: ${result.sid}`);

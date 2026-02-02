@@ -27,13 +27,25 @@ import { issueCsrfToken, csrfProtection } from './middlewares/csrfProtection.js'
 
 const app= express();
 
+const allowedOrigins = [
+    process.env.BASE_URL_FRONTEND?.trim(),
+    process.env.BASE_URL_BACKEND?.trim(),
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:4000',
+    'http://127.0.0.1:4000',
+    'http://192.168.1.79:5173', // IP de red local para acceso desde móvil
+    /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:5173$/ // Permite cualquier IP local en el rango 192.168.x.x
+].filter(Boolean);
+
 app.use(cors({
-    origin: [
-        process.env.BASE_URL_FRONTEND,
-        process.env.BASE_URL_BACKEND,
-        'http://192.168.1.79:5173', // IP de red local para acceso desde móvil
-        /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:5173$/ // Permite cualquier IP local en el rango 192.168.x.x
-    ],
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const isAllowed = allowedOrigins.some((entry) =>
+            entry instanceof RegExp ? entry.test(origin) : entry === origin
+        );
+        return isAllowed ? callback(null, true) : callback(new Error('CORS not allowed'));
+    },
     credentials: true
 }));
 app.use(morgan('dev'));
