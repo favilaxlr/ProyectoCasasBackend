@@ -101,7 +101,7 @@ export const propertySchema = z.object({
             (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
             z.number().optional()
         ),
-        propertyType: z.enum(["house", "apartment", "condo", "townhouse"], {
+        propertyType: z.enum(["house", "apartment", "condo", "townhouse", "vacant_land"], {
             required_error: "Property type is required"
         }),
         yearBuilt: z.preprocess(
