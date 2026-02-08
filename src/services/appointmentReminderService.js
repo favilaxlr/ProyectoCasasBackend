@@ -4,6 +4,7 @@ import User from '../models/user.models.js';
 import Property from '../models/property.models.js';
 import dotenv from 'dotenv';
 import { getTwilioSenderConfig } from '../libs/twilioSender.js';
+import { buildSMS, shorten, formatShortDate, formatTimeLabel } from '../libs/smsTemplates.js';
 
 dotenv.config();
 
@@ -29,28 +30,14 @@ const sendClientReminder = async (appointment, property) => {
         return { success: true, mode: 'mock' };
     }
 
-    const appointmentDate = new Date(appointment.appointmentDate);
-    const formattedDate = appointmentDate.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-    });
-
-    const message = `FR Family Investments - Appointment Reminder
-
-Dear ${appointment.visitor.name},
-
-This is a reminder of your scheduled property viewing:
-
-Property: ${property.title}
-Address: ${property.address?.street || 'N/A'}, ${property.address?.city || ''}
-Date: ${formattedDate}
-Time: ${appointment.appointmentTime}
-
-Please arrive on time. If you need to reschedule, contact us as soon as possible.
-
-Thank you.`;
+    const dateLabel = formatShortDate(appointment.appointmentDate);
+    const timeLabel = formatTimeLabel(appointment.appointmentTime);
+    const title = shorten(property.title, 24);
+    const city = shorten(property.address?.city || '', 12);
+    const payloadParts = ['Reminder', title, 'on', dateLabel, timeLabel];
+    if (city) payloadParts.push(city);
+    payloadParts.push('See you soon');
+    const message = buildSMS(payloadParts.join(' '));
 
     try {
         const result = await twilioClient.messages.create({
@@ -76,30 +63,12 @@ const sendAdminReminder = async (appointment, property, admin) => {
         return { success: true, mode: 'mock' };
     }
 
-    const appointmentDate = new Date(appointment.appointmentDate);
-    const formattedDate = appointmentDate.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-    });
-
-    const message = `FR Family Investments - Appointment Reminder
-
-Hello ${admin.username},
-
-Reminder: You have a scheduled property viewing tomorrow.
-
-Property: ${property.title}
-Address: ${property.address?.street || 'N/A'}, ${property.address?.city || ''}
-Date: ${formattedDate}
-Time: ${appointment.appointmentTime}
-
-Client: ${appointment.visitor.name}
-Phone: ${appointment.visitor.phone}
-Email: ${appointment.visitor.email}
-
-Please be prepared and on time.`;
+    const dateLabel = formatShortDate(appointment.appointmentDate);
+    const timeLabel = formatTimeLabel(appointment.appointmentTime);
+    const title = shorten(property.title, 22);
+    const clientName = shorten(appointment.visitor.name || 'Client', 14);
+    const payload = `Reminder ${title} ${dateLabel} ${timeLabel} client ${clientName}`;
+    const message = buildSMS(payload);
 
     try {
         const result = await twilioClient.messages.create({

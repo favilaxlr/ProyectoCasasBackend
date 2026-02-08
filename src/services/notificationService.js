@@ -4,6 +4,7 @@ import Role from '../models/roles.models.js';
 import Notification from '../models/notification.models.js';
 import dotenv from 'dotenv';
 import { getTwilioSenderConfig } from '../libs/twilioSender.js';
+import { buildSMS, shorten } from '../libs/smsTemplates.js';
 
 dotenv.config();
 
@@ -30,21 +31,31 @@ const MAX_RETRIES = 3;
 const MAX_PROCESSING_TIME = 10 * 60 * 1000; // 10 minutos
 
 // Message template for new properties (SMS optimized, formal tone)
+const formatPrice = (property) => {
+    if (property.price?.sale) {
+        return `$${property.price.sale.toLocaleString()}`;
+    }
+    if (property.price?.rent) {
+        return `$${property.price.rent.toLocaleString()}/m`;
+    }
+    return 'price?';
+};
+
 const generatePropertyMessage = (property) => {
-    const baseUrl = process.env.BASE_URL_FRONTEND || 'http://localhost:5173';
-    const price = property.price?.sale ? `$${property.price.sale.toLocaleString()}` : 'Price upon request';
-    const beds = property.details?.bedrooms || 'N/A';
-    const baths = property.details?.bathrooms || 'N/A';
-    return `FR Family Investments - New Property Available\n\n${property.title}\nPrice: ${price}\nBedrooms: ${beds} | Bathrooms: ${baths}\nLocation: ${property.address?.city || 'Dallas'}\n\nView details: ${baseUrl}/properties/${property._id}`;
+    const title = shorten(property.title, 30);
+    const city = shorten(property.address?.city || 'Dallas', 15);
+    const price = shorten(formatPrice(property), 16);
+    const payload = `New listing ${title} ${city} ${price}`;
+    return buildSMS(payload);
 };
 
 // Message template for properties that become available again
 const generateAvailableAgainMessage = (property) => {
-    const baseUrl = process.env.BASE_URL_FRONTEND || 'http://localhost:5173';
-    const price = property.price?.sale ? `$${property.price.sale.toLocaleString()}` : 'Price upon request';
-    const beds = property.details?.bedrooms || 'N/A';
-    const baths = property.details?.bathrooms || 'N/A';
-    return `FR Family Investments - Property Available Again\n\n${property.title}\nPrice: ${price}\nBedrooms: ${beds} | Bathrooms: ${baths}\nLocation: ${property.address?.city || 'Dallas'}\n\nView details: ${baseUrl}/properties/${property._id}`;
+    const title = shorten(property.title, 30);
+    const city = shorten(property.address?.city || 'Dallas', 15);
+    const price = shorten(formatPrice(property), 16);
+    const payload = `Back on market ${title} ${city} ${price}`;
+    return buildSMS(payload);
 };
 
 // Send an individual SMS with retry + mock support

@@ -6,6 +6,7 @@ import twilio from 'twilio';
 import dotenv from 'dotenv';
 import { checkAndSendReminders } from '../services/appointmentReminderService.js';
 import { getTwilioSenderConfig } from '../libs/twilioSender.js';
+import { buildSMS, shorten, formatShortDate, formatTimeLabel } from '../libs/smsTemplates.js';
 
 dotenv.config();
 
@@ -17,8 +18,12 @@ const notifyAssignedAdmin = async (appointment, property) => {
         const admin = await User.findById(appointment.assignedTo);
         if (!admin || !admin.phone) return;
 
-        const formattedDate = new Date(appointment.appointmentDate).toLocaleDateString('en-US');
-        const message = `APPOINTMENT CONFIRMED - ${appointment.visitor.name} confirmed their visit for "${property.title}" on ${formattedDate} at ${appointment.appointmentTime}. Contact: ${appointment.visitor.phone}`;
+        const dateLabel = formatShortDate(appointment.appointmentDate);
+        const timeLabel = formatTimeLabel(appointment.appointmentTime);
+        const title = shorten(property.title, 24);
+        const visitorName = shorten(appointment.visitor?.name || 'Client', 16);
+        const payload = `Client confirmed ${title} ${dateLabel} ${timeLabel} ${visitorName}`;
+        const message = buildSMS(payload);
         
         await client.messages.create({
             body: message,
@@ -71,21 +76,12 @@ const notifyAdminsOfNewAppointment = async (appointment, property, visitor) => {
         }
 
         const visitorName = visitor?.username || appointment.visitor?.name || 'A client';
-        const visitorPhone = visitor?.phone || appointment.visitor?.phone || 'N/A';
-        const visitorEmail = visitor?.email || appointment.visitor?.email || 'N/A';
 
-        const appointmentDate = new Date(appointment.appointmentDate);
-        const formattedDate = appointmentDate.toLocaleDateString('en-US', {
-            weekday: 'short',
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
-
-        const baseUrl = process.env.BASE_URL_FRONTEND || 'http://localhost:5173';
-        const homeLink = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
-
-        const smsBody = `FR Family Investments - New Appointment\n\n${visitorName} just scheduled a visit for "${property.title}" on ${formattedDate} at ${appointment.appointmentTime}.\nPhone: ${visitorPhone}\nEmail: ${visitorEmail}\n\nHome: ${homeLink}`;
+        const dateLabel = formatShortDate(appointment.appointmentDate);
+        const timeLabel = formatTimeLabel(appointment.appointmentTime);
+        const title = shorten(property.title, 24);
+        const payload = `New appt ${title} ${dateLabel} ${timeLabel} client ${shorten(visitorName, 16)}`;
+        const smsBody = buildSMS(payload);
 
         await Promise.all(
             recipients.map(async recipient => {
@@ -119,8 +115,11 @@ const sendConfirmationSMS = async (phone, appointmentId, confirmationCode, prope
     }
     
     try {
-        const confirmLink = `${process.env.BASE_URL_FRONTEND}/confirm-appointment/${appointmentId}/${confirmationCode}`;
-        const message = `Confirm your appointment for "${propertyTitle}" on ${appointmentDate} at ${appointmentTime}. Tap the link to confirm: ${confirmLink}`;
+        const title = shorten(propertyTitle, 28);
+        const dateLabel = formatShortDate(appointmentDate);
+        const timeLabel = formatTimeLabel(appointmentTime);
+        const payload = `Please confirm ${title} on ${dateLabel} at ${timeLabel}. Reply YES.`;
+        const message = buildSMS(payload);
         
         await client.messages.create({
             body: message,
@@ -128,7 +127,7 @@ const sendConfirmationSMS = async (phone, appointmentId, confirmationCode, prope
             ...getTwilioSenderConfig()
         });
         
-        console.log(`📱 Confirmation link SMS sent to ${phone}`);
+        console.log(`📱 Confirmation SMS sent to ${phone}`);
         return true;
     } catch (error) {
         console.error('Error sending SMS:', error);
@@ -358,9 +357,13 @@ export const twilioWebhook = async (req, res) => {
             await notifyAssignedAdmin(appointment, appointment.property);
             
             // Responder al usuario
+            const dateLabel = formatShortDate(appointment.appointmentDate);
+            const timeLabel = formatTimeLabel(appointment.appointmentTime);
+            const title = shorten(appointment.property.title, 28);
+            const confirmReply = buildSMS(`Appointment confirmed for ${title} ${dateLabel} ${timeLabel}`);
             const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Message>Thank you! Your appointment for "${appointment.property.title}" is confirmed. We look forward to seeing you on ${new Date(appointment.appointmentDate).toLocaleDateString('en-US')} at ${appointment.appointmentTime}.</Message>
+    <Message>${confirmReply}</Message>
 </Response>`;
             
             return res.status(200).type('text/xml').send(twimlResponse);
@@ -371,17 +374,19 @@ export const twilioWebhook = async (req, res) => {
             
             console.log(`❌ Appointment ${appointment._id} cancelled via SMS`);
             
+            const cancelReply = buildSMS('Appointment cancelled. Schedule a new visit anytime.');
             const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Message>Understood. Your appointment has been cancelled. You can schedule a new visit at any time.</Message>
+    <Message>${cancelReply}</Message>
 </Response>`;
             
             return res.status(200).type('text/xml').send(twimlResponse);
         } else {
             // Respuesta no reconocida
+            const helpReply = buildSMS('Reply YES to confirm or NO to cancel.');
             const twimlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Message>Please use the link we sent to confirm your appointment. If you need to cancel, you can manage it from your account.</Message>
+    <Message>${helpReply}</Message>
 </Response>`;
             
             return res.status(200).type('text/xml').send(twimlResponse);
@@ -514,13 +519,14 @@ export const assignAppointment = async (req, res) => {
         // Send confirmation SMS to the client
         if (client && appointment.visitor && appointment.visitor.phone) {
             try {
-                const fechaCita = new Date(appointment.appointmentDate).toLocaleDateString('en-US');
-
-                const direccion = appointment.property.address 
-                    ? `${appointment.property.address.street}, ${appointment.property.address.city}`
-                    : 'To be confirmed';
-
-                const message = `FR Family Investments - Your appointment for "${appointment.property.title}" is confirmed. Date: ${fechaCita} at ${appointment.appointmentTime}. Agent: ${admin.username}. Address: ${direccion}`;
+                const dateLabel = formatShortDate(appointment.appointmentDate);
+                const timeLabel = formatTimeLabel(appointment.appointmentTime);
+                const title = shorten(appointment.property.title, 28);
+                const agentName = shorten(admin.username, 14);
+                const city = shorten(appointment.property.address?.city || '', 12);
+                const payloadParts = ['Your visit for', title, 'is set', dateLabel, timeLabel, `agent ${agentName}`];
+                if (city) payloadParts.push(city);
+                const message = buildSMS(payloadParts.join(' '));
                 
                 console.log('📤 Attempting to send SMS...');
                 console.log('📱 Destination:', appointment.visitor.phone);

@@ -1,5 +1,6 @@
 import { getNotificationStats, resendFailedNotifications } from '../services/notificationService.js';
 import Notification from '../models/notification.models.js';
+import { buildSMS, shorten } from '../libs/smsTemplates.js';
 
 // Obtener estadísticas de notificaciones
 export const getStats = async (req, res) => {
@@ -81,7 +82,6 @@ export const previewMessage = async (req, res) => {
         const { propertyId } = req.params;
         
         // Simular el mensaje que se enviaría
-        const baseUrl = process.env.BASE_URL_FRONTEND;
         const mockProperty = {
             title: "Casa Ejemplo",
             price: { rent: 2500 },
@@ -90,12 +90,15 @@ export const previewMessage = async (req, res) => {
             _id: propertyId
         };
         
-        const message = `NUEVA PROPIEDAD DISPONIBLE - FR Family Investments. Propiedad: ${mockProperty.title}. Precio: $${mockProperty.price.rent.toLocaleString()}/mes. Recámaras: ${mockProperty.details.bedrooms}. Baños: ${mockProperty.details.bathrooms}. Ubicación: ${mockProperty.address.city}, Dallas. Ver detalles: ${baseUrl}/properties/${mockProperty._id}`;
+        const title = shorten(mockProperty.title, 30);
+        const city = shorten(mockProperty.address.city, 15);
+        const price = shorten(`$${mockProperty.price.rent.toLocaleString()}/m`, 16);
+        const message = buildSMS(`New listing ${title} ${city} ${price}`);
         
         res.json({
             message,
             length: message.length,
-            maxLength: 160 // Límite típico de SMS
+            maxLength: 160
         });
     } catch (error) {
         console.error('Error generando vista previa:', error);
