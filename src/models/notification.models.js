@@ -5,7 +5,7 @@ const notificationSchema = new mongoose.Schema(
         // Tipo de notificación
         type: {
             type: String,
-            enum: ['new_property', 'general'],
+            enum: ['new_property', 'general', 'available_again'],
             default: 'new_property'
         },
         
@@ -53,11 +53,18 @@ const notificationSchema = new mongoose.Schema(
                 phone: String
             }
         }],
+
+        // Información del filtro aplicado
+        filters: {
+            cityCode: String,
+            cityLabel: String,
+            notes: String
+        },
         
         // Estado del envío masivo
         status: {
             type: String,
-            enum: ['pending', 'in_progress', 'completed', 'failed'],
+            enum: ['pending', 'in_progress', 'completed', 'failed', 'skipped'],
             default: 'pending'
         },
         

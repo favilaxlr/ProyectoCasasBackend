@@ -7,7 +7,9 @@ import {
     deleteUser,
     updateProfile,
     changePassword,
-    updateProfileImage
+    updateProfileImage,
+    updateUserNotificationPreferences,
+    updateOwnNotificationPreferences
 } from '../controllers/users.controller.js';
 import { validateToken } from '../middlewares/validateToken.js';
 import { isAdmin } from '../middlewares/isAdmin.js';
@@ -19,6 +21,7 @@ const router = Router();
 router.put('/profile', validateToken, updateProfile);
 router.put('/profile/password', validateToken, changePassword);
 router.put('/profile/image', validateToken, uploadSingleToCloudinary, updateProfileImage);
+router.put('/profile/notification-preferences', validateToken, updateOwnNotificationPreferences);
 
 // Todas las rutas requieren autenticación y rol de admin
 router.use(validateToken);
@@ -28,6 +31,7 @@ router.use(isAdmin);
 router.get('/users', getUsers);
 router.get('/users/:id', getUser);
 router.put('/users/:id/role', changeUserRole);
+router.put('/users/:id/notification-preferences', updateUserNotificationPreferences);
 router.delete('/users/:id', deleteUser);
 
 // Rutas de roles

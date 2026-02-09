@@ -53,6 +53,31 @@ const userSchema = mongoose.Schema({
     verificationCodeExpiry: {
         type: Date,
         default: null
+    },
+    notificationPreferences: {
+        cities: {
+            type: [String],
+            default: [],
+            validate: {
+                validator: function (value) {
+                    return Array.isArray(value) && value.length <= 3;
+                },
+                message: 'Solo puedes habilitar hasta 3 ciudades'
+            }
+        },
+        lastUpdatedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            default: null
+        },
+        lastUpdatedAt: {
+            type: Date,
+            default: null
+        },
+        userLastUpdatedAt: {
+            type: Date,
+            default: null
+        }
     }
 }, {
     timestamps: true

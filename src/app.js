@@ -23,6 +23,7 @@ import reviewRoutes from './routes/reviews.routes.js';
 import notificationRoutes from './routes/notifications.routes.js';
 //Importamos las rutas para ofertas
 import offerRoutes from './routes/offers.routes.js';
+import notificationPreferencesRoutes from './routes/notificationPreferences.routes.js';
 import { issueCsrfToken, csrfProtection } from './middlewares/csrfProtection.js';
 
 const app= express();
@@ -68,6 +69,7 @@ app.use('/api/admin/', userRoutes);
 app.use('/api/', reviewRoutes);
 app.use('/api/admin/', notificationRoutes);
 app.use('/api/', offerRoutes);
+app.use('/api/', notificationPreferencesRoutes);
 
 // Health check endpoint for Render
 app.get('/health', (req, res) => {

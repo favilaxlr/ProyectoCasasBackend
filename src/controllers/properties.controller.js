@@ -110,7 +110,11 @@ export const createProperty = async (req, res) => {
             if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID !== 'your_account_sid_here') {
                 console.log('Starting mass notification dispatch...');
                 const notificationResult = await sendMassNotification(savedProperty, req.user.id);
-                console.log('Notifications sent:', notificationResult.stats);
+                if (notificationResult.skipped) {
+                    console.log('Notifications skipped: no subscribers for city');
+                } else {
+                    console.log('Notifications sent:', notificationResult.stats);
+                }
             } else {
                 console.log('Twilio not configured - skipping SMS notifications');
             }
@@ -428,7 +432,7 @@ export const changePropertyStatus = async (req, res) => {
                 const { sendPropertyAvailableNotification } = await import('../services/notificationService.js');
                 // No esperar la notificación (fire and forget)
                 sendPropertyAvailableNotification(property, req.user.id)
-                    .then(result => console.log('✅ Notificación de disponibilidad enviada:', result.notification._id))
+                    .then(result => console.log('✅ Notificación de disponibilidad enviada:', result.notificationId))
                     .catch(err => console.error('❌ Error enviando notificación de disponibilidad:', err.message));
             } catch (error) {
                 console.error('❌ Error al importar servicio de notificaciones:', error.message);

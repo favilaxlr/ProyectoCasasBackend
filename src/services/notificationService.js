@@ -5,6 +5,7 @@ import Notification from '../models/notification.models.js';
 import dotenv from 'dotenv';
 import { getTwilioSenderConfig } from '../libs/twilioSender.js';
 import { buildSMS, shorten } from '../libs/smsTemplates.js';
+import { buildCityCodeFromAddress, getCityLabel, buildCityLabel } from '../config/notificationCities.js';
 
 dotenv.config();
 
@@ -140,7 +141,8 @@ export const sendMassNotification = async (property, createdBy, customMessage = 
         const userQuery = {
             phone: { $exists: true, $ne: '' },
             isEmailVerified: true,
-            isPhoneVerified: true
+            isPhoneVerified: true,
+            'notificationPreferences.cities.0': { $exists: true }
         };
         
         // Solo excluir admins si encontramos el rol
@@ -148,28 +150,122 @@ export const sendMassNotification = async (property, createdBy, customMessage = 
             userQuery.role = { $ne: adminRoleId };
         }
         
-        const users = await User.find(userQuery).select('phone username');
-
-        if (users.length === 0) {
-            throw new Error('No verified users to notify');
+        const propertyCityCode = buildCityCodeFromAddress(property.address);
+        if (!propertyCityCode) {
+            throw new Error('No se pudo determinar la ciudad de la propiedad');
         }
 
-        // 3. Build message template
-        const message = generatePropertyMessage(property);
+        const propertyCityLabel = getCityLabel(propertyCityCode) || buildCityLabel(property.address?.city, property.address?.state) || 'Ciudad sin nombre';
+        const message = customMessage || generatePropertyMessage(property);
+
+        const eligibleUsers = await User.find(userQuery)
+            .select('phone username notificationPreferences');
+
+        if (eligibleUsers.length === 0) {
+            notification = new Notification({
+                type: notificationType,
+                property: property._id,
+                message,
+                stats: {
+                    totalUsers: 0,
+                    sentCount: 0,
+                    failedCount: 0,
+                    invalidNumbers: []
+                },
+                results: [],
+                status: 'skipped',
+                createdBy,
+                filters: {
+                    cityCode: propertyCityCode,
+                    cityLabel: propertyCityLabel,
+                    notes: 'No investors have notification cities configured'
+                },
+                processingTime: {
+                    startedAt: startTime,
+                    completedAt: startTime,
+                    duration: 0
+                }
+            });
+
+            await notification.save();
+
+            console.log('ℹ️ Notification skipped: no investors have notification cities configured');
+
+            return {
+                success: true,
+                notificationId: notification._id,
+                stats: {
+                    totalUsers: 0,
+                    sent: 0,
+                    failed: 0,
+                    duration: 0
+                },
+                skipped: true
+            };
+        }
+
+        const targetUsers = eligibleUsers.filter(user => {
+            const cities = user.notificationPreferences?.cities || [];
+            return cities.includes(propertyCityCode);
+        });
+
+        if (targetUsers.length === 0) {
+            notification = new Notification({
+                type: notificationType,
+                property: property._id,
+                message,
+                stats: {
+                    totalUsers: 0,
+                    sentCount: 0,
+                    failedCount: 0,
+                    invalidNumbers: []
+                },
+                results: [],
+                status: 'skipped',
+                createdBy,
+                filters: {
+                    cityCode: propertyCityCode,
+                    cityLabel: propertyCityLabel,
+                    notes: 'No subscribers for this city yet'
+                },
+                processingTime: {
+                    startedAt: startTime,
+                    completedAt: startTime,
+                    duration: 0
+                }
+            });
+
+            await notification.save();
+
+            console.log(`ℹ️ Notification skipped for ${propertyCityLabel}: no subscribed investors`);
+
+            return {
+                success: true,
+                notificationId: notification._id,
+                stats: {
+                    totalUsers: 0,
+                    sent: 0,
+                    failed: 0,
+                    duration: 0
+                },
+                skipped: true
+            };
+        }
 
         console.log('\n📢 ============================================');
         console.log('🏠 Starting mass SMS notification batch...');
-        console.log(`📊 Users to notify: ${users.length}`);
+        console.log(`📍 Segment: ${propertyCityLabel} (${propertyCityCode})`);
+        console.log(`📊 Users to notify: ${targetUsers.length} of ${eligibleUsers.length} eligible`);
         console.log(`📝 Message: ${message.substring(0, 50)}...`);
         console.log('📢 ============================================\n');
 
         // 4. Create notification record
         notification = new Notification({
-            type: 'new_property',
+            type: notificationType,
             property: property._id,
             message,
             stats: {
-                totalUsers: users.length,
+                totalUsers: targetUsers.length,
                 sentCount: 0,
                 failedCount: 0,
                 invalidNumbers: []
@@ -177,6 +273,10 @@ export const sendMassNotification = async (property, createdBy, customMessage = 
             results: [],
             status: 'in_progress',
             createdBy,
+            filters: {
+                cityCode: propertyCityCode,
+                cityLabel: propertyCityLabel
+            },
             processingTime: {
                 startedAt: startTime
             }
@@ -190,13 +290,13 @@ export const sendMassNotification = async (property, createdBy, customMessage = 
         const invalidNumbers = [];
         const allResults = [];
 
-        for (let i = 0; i < users.length; i += BATCH_SIZE) {
+        for (let i = 0; i < targetUsers.length; i += BATCH_SIZE) {
             // Enforce max processing time
             if (Date.now() - startTime.getTime() > MAX_PROCESSING_TIME) {
                 throw new Error('Maximum processing time exceeded');
             }
 
-            const batch = users.slice(i, i + BATCH_SIZE);
+            const batch = targetUsers.slice(i, i + BATCH_SIZE);
             const batchResults = await processBatch(batch, message);
 
             totalSent += batchResults.sent.length;
@@ -226,7 +326,7 @@ export const sendMassNotification = async (property, createdBy, customMessage = 
             });
 
             // Pause between batches (except final batch)
-            if (i + BATCH_SIZE < users.length) {
+            if (i + BATCH_SIZE < targetUsers.length) {
                 await new Promise(resolve => setTimeout(resolve, BATCH_INTERVAL));
             }
         }
@@ -247,8 +347,8 @@ export const sendMassNotification = async (property, createdBy, customMessage = 
 
         console.log('\n📢 ============================================');
         console.log('✅ Notifications completed');
-        console.log(`📊 Sent: ${totalSent}/${users.length}`);
-        console.log(`❌ Failed: ${totalFailed}/${users.length}`);
+        console.log(`📊 Sent: ${totalSent}/${targetUsers.length}`);
+        console.log(`❌ Failed: ${totalFailed}/${targetUsers.length}`);
         console.log(`⏱️  Duration: ${duration}s`);
         console.log('📢 ============================================\n');
 
@@ -256,7 +356,7 @@ export const sendMassNotification = async (property, createdBy, customMessage = 
             success: true,
             notificationId: notification._id,
             stats: {
-                totalUsers: users.length,
+                totalUsers: targetUsers.length,
                 sent: totalSent,
                 failed: totalFailed,
                 duration
@@ -285,7 +385,10 @@ export const sendMassNotification = async (property, createdBy, customMessage = 
 // Función para obtener estadísticas de notificaciones
 export const getNotificationStats = async () => {
     const totalUsers = await User.countDocuments({
-        phone: { $exists: true, $ne: '' }
+        phone: { $exists: true, $ne: '' },
+        isEmailVerified: true,
+        isPhoneVerified: true,
+        'notificationPreferences.cities.0': { $exists: true }
     });
 
     const recentNotifications = await Notification.find()

@@ -1,4 +1,11 @@
-import {z} from 'zod';
+import { z } from 'zod';
+import { 
+    NOTIFICATION_CITIES,
+    MAX_NOTIFICATION_CITIES,
+    MIN_NOTIFICATION_CITIES
+} from '../config/notificationCities.js';
+
+const allowedCityCodes = NOTIFICATION_CITIES.map(city => city.code);
 
 export const registerSchema = z.object({
     username: z.string('Nombre del usuario requerido')
@@ -21,8 +28,51 @@ export const registerSchema = z.object({
     password: z.string('Password requerido')
         .min(6, {
             error: 'El password debe tener al menos 6 caracteres'
-        })
+        }),
+    notificationCity: z.string({
+        required_error: 'Debes seleccionar al menos una ciudad'
+    }).optional(),
+    notificationCities: z.array(z.string({
+        required_error: 'Debes seleccionar al menos una ciudad'
+    })).optional()
 })//Fin de registerSchema
+    .superRefine((data, ctx) => {
+        const combined = [];
+
+        if (Array.isArray(data.notificationCities)) {
+            combined.push(...data.notificationCities);
+        }
+        if (data.notificationCity) {
+            combined.push(data.notificationCity);
+        }
+
+        const sanitized = Array.from(new Set(combined.filter(Boolean)));
+
+        if (sanitized.length < MIN_NOTIFICATION_CITIES) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `Debes seleccionar al menos ${MIN_NOTIFICATION_CITIES} ciudad${MIN_NOTIFICATION_CITIES > 1 ? 'es' : ''}`,
+                path: ['notificationCities']
+            });
+        }
+
+        if (sanitized.length > MAX_NOTIFICATION_CITIES) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `Solo puedes seleccionar hasta ${MAX_NOTIFICATION_CITIES} ciudades`,
+                path: ['notificationCities']
+            });
+        }
+
+        const invalidCodes = sanitized.filter(code => !allowedCityCodes.includes(code));
+        if (invalidCodes.length > 0) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Una o más ciudades seleccionadas no están disponibles',
+                path: ['notificationCities']
+            });
+        }
+    });
 
 export const loginSchema = z.object({
         

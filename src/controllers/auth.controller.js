@@ -7,6 +7,34 @@ import jwt from 'jsonwebtoken';
 import { TOKEN_SECRET } from '../config.js';
 import dotenv from 'dotenv';
 import { sendVerificationCode, verifyCode } from '../services/verificationService.js';
+import { 
+    sanitizeCityCodes, 
+    USER_NOTIFICATION_CITY_COOLDOWN_MS, 
+    MIN_NOTIFICATION_CITIES,
+    MAX_NOTIFICATION_CITIES
+} from '../config/notificationCities.js';
+const buildUserResponse = (user, role) => {
+    const userLastUpdatedAt = user.notificationPreferences?.userLastUpdatedAt;
+    const nextUserUpdateAvailableAt = userLastUpdatedAt
+        ? new Date(userLastUpdatedAt.getTime() + USER_NOTIFICATION_CITY_COOLDOWN_MS)
+        : null;
+
+    return ({
+    id: user._id,
+    username: user.username,
+    email: user.email,
+    phone: user.phone,
+    profileImage: user.profileImage,
+    role,
+    notificationPreferences: {
+        cities: user.notificationPreferences?.cities || [],
+        lastUpdatedAt: user.notificationPreferences?.lastUpdatedAt,
+        lastUpdatedBy: user.notificationPreferences?.lastUpdatedBy,
+        userLastUpdatedAt,
+        nextUserUpdateAvailableAt
+    }
+    });
+};
 
 // Función helper para configurar cookies de autenticación
 const setAuthCookie = (res, token) => {
@@ -37,7 +65,7 @@ const roleUser = process.env.SETUP_ROLE_USER;
 
 //Funcion para registrar usuarios
 export const register = async (req, res)=>{
-    const { username, email, phone, password} = req.body;
+    const { username, email, phone, password, notificationCities, notificationCity } = req.body;
     
     try {
         console.log('📝 Intento de registro:', { username, email, phone: phone ? 'Presente' : 'Ausente' });
@@ -59,6 +87,24 @@ export const register = async (req, res)=>{
             }
         }
 
+        const requestedCities = Array.isArray(notificationCities)
+            ? notificationCities
+            : notificationCity
+                ? [notificationCity]
+                : [];
+
+        const uniqueRequested = Array.from(new Set((requestedCities || []).filter(Boolean)));
+        if (uniqueRequested.length > MAX_NOTIFICATION_CITIES) {
+            return res.status(400)
+                        .json({message: [`Solo puedes seleccionar hasta ${MAX_NOTIFICATION_CITIES} ciudades para las notificaciones`]});
+        }
+
+        const sanitizedCities = sanitizeCityCodes(uniqueRequested);
+        if (sanitizedCities.length < MIN_NOTIFICATION_CITIES) {
+            return res.status(400)
+                        .json({message: [`Debes seleccionar al menos ${MIN_NOTIFICATION_CITIES} ciudad${MIN_NOTIFICATION_CITIES > 1 ? 'es' : ''} válidas para las notificaciones`]});
+        }
+
         //Obtenemos el rol por defecto para usuarios
         //Y lo agregamos al usuario para guardarlo en la db con ese rol
         const role = await Role.findOne({role: roleUser});
@@ -76,7 +122,11 @@ export const register = async (req, res)=>{
             email,
             phone,
             password, // Sin hashear, el modelo lo hará automáticamente
-            role: role._id 
+            role: role._id,
+            notificationPreferences: {
+                cities: sanitizedCities,
+                lastUpdatedAt: new Date()
+            }
         });
         const userSaved = await newUser.save();
         
@@ -147,15 +197,12 @@ export const login = async (req, res)=>{
         //de desarollo, o lo generamos para el servidor en la nube 
         setAuthCookie(res, token);
 
+        const userPayload = buildUserResponse(userFound, role);
+
         res.json({
-            id: userFound._id,
-            username: userFound.username,
-            email: userFound.email,
-            phone: userFound.phone,
-            profileImage: userFound.profileImage,
-            role: role,
-            token: token // Incluir token en el body para producción
-        })
+            ...userPayload,
+            token // Incluir token en el body para producción
+        });
     } catch (error){
         res.status(500)
             .json({message: ["Error al iniciar sesión"]});
@@ -202,12 +249,9 @@ export const profile = async (req, res)=>{
             return res.status(400) //Retornamos error en el login
                         .json({message: ["El rol para el usuario no está definido"]})
 
-        res.json({
-            id: userFound._id,
-            username: userFound.username,
-            email: userFound.email,
-            phone: userFound.phone,
-        })
+        const response = buildUserResponse(userFound, role);
+
+        res.json(response)
     
 }//Fin de profile
 
@@ -243,14 +287,7 @@ export const verifyToken = async (req, res)=>{
             return res.status(400) //Retornamos error en el login
                         .json({message: ["El rol para el usuario no está definido"]})
 
-        const userResponse = {
-            id: userFound._id,
-            username: userFound.username,
-            email: userFound.email,
-            phone: userFound.phone,
-            profileImage: userFound.profileImage,
-            role: role
-        }
+        const userResponse = buildUserResponse(userFound, role);
 
         return res.json(userResponse);
 
@@ -286,19 +323,16 @@ export const verifyUserCode = async (req, res) => {
             console.log('✅ Usuario ya verificado, autenticando directamente...');
             const role = await Role.findById(user.role);
             const token = await createAccessToken({id: user._id});
+            const userPayload = buildUserResponse(user, role);
 
             setAuthCookie(res, token);
 
             return res.json({
                 message: 'Ya estás verificado. Bienvenido de nuevo',
-                id: user._id,
-                username: user.username,
-                email: user.email,
-                phone: user.phone,
-                profileImage: user.profileImage,
-                role: role.role,
+                ...userPayload,
                 isEmailVerified: user.isEmailVerified,
-                isPhoneVerified: user.isPhoneVerified
+                isPhoneVerified: user.isPhoneVerified,
+                token
             });
         }
 
@@ -318,6 +352,7 @@ export const verifyUserCode = async (req, res) => {
         // Ahora SÍ generar el token después de verificar
         const role = await Role.findById(user.role);
         const token = await createAccessToken({id: user._id});
+        const userPayload = buildUserResponse(user, role);
 
         setAuthCookie(res, token);
 
@@ -325,15 +360,10 @@ export const verifyUserCode = async (req, res) => {
 
         res.json({
             message: 'Verificación exitosa',
-            id: user._id,
-            username: user.username,
-            email: user.email,
-            phone: user.phone,
-            profileImage: user.profileImage,
-            role: role,
+            ...userPayload,
             isEmailVerified: user.isEmailVerified,
             isPhoneVerified: user.isPhoneVerified,
-            token: token // Incluir token en el body
+            token // Incluir token en el body
         });
     } catch (error) {
         console.error('❌ Error en verifyUserCode:', error);
