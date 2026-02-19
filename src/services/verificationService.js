@@ -35,7 +35,9 @@ export const generateVerificationCode = () => {
 export const sendVerificationSMS = async (phone, code) => {
     try {
         if (twilioClient && TWILIO_ENABLED) {
-            const smsBody = buildSMS(`Your code ${code} expires in 10m`);
+            const smsBody = buildSMS(
+                `FR Family Investments: welcome. Code ${code} valid 10 min. Msg freq varies; msg & data rates may apply. STOP=stop HELP=help`
+            );
             await twilioClient.messages.create({
                 body: smsBody,
                 to: phone,
