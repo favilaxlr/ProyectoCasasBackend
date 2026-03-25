@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import { TOKEN_SECRET } from '../config.js';
 import dotenv from 'dotenv';
 import { sendVerificationCode, verifyCode } from '../services/verificationService.js';
+import { sendWelcomeSMS } from '../services/welcomeService.js';
 import { 
     sanitizeCityCodes, 
     USER_NOTIFICATION_CITY_COOLDOWN_MS, 
@@ -353,6 +354,15 @@ export const verifyUserCode = async (req, res) => {
         const role = await Role.findById(user.role);
         const token = await createAccessToken({id: user._id});
         const userPayload = buildUserResponse(user, role);
+
+        // Enviar SMS de bienvenida después de la verificación exitosa
+        if (user.phone) {
+            try {
+                await sendWelcomeSMS(user.phone);
+            } catch (e) {
+                console.error('❌ Error enviando SMS de bienvenida:', e.message);
+            }
+        }
 
         setAuthCookie(res, token);
 
