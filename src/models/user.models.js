@@ -46,6 +46,28 @@ const userSchema = mongoose.Schema({
         type: Boolean,
         default: false
     },
+    smsConsent: {
+        type: Boolean,
+        default: false
+    },
+    consentRecord: {
+        optedInAt: {
+            type: Date,
+            default: null
+        },
+        ipAddress: {
+            type: String,
+            default: ''
+        },
+        userAgent: {
+            type: String,
+            default: ''
+        },
+        disclosureText: {
+            type: String,
+            default: ''
+        }
+    },
     verificationCode: {
         type: String,
         default: null

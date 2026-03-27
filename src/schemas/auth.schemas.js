@@ -34,7 +34,10 @@ export const registerSchema = z.object({
     }).optional(),
     notificationCities: z.array(z.string({
         required_error: 'Debes seleccionar al menos una ciudad'
-    })).optional()
+    })).optional(),
+    smsConsent: z.literal(true, {
+        errorMap: () => ({ message: 'You must consent to SMS notifications (Reply STOP to opt out).'})
+    })
 })//Fin de registerSchema
     .superRefine((data, ctx) => {
         const combined = [];

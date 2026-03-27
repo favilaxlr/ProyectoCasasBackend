@@ -66,9 +66,12 @@ const roleUser = process.env.SETUP_ROLE_USER;
 
 //Funcion para registrar usuarios
 export const register = async (req, res)=>{
-    const { username, email, phone, password, notificationCities, notificationCity } = req.body;
+    const { username, email, phone, password, notificationCities, notificationCity, smsConsent } = req.body;
     
     try {
+        if (!smsConsent) {
+            return res.status(400).json({ message: ['SMS consent is required.'] });
+        }
         console.log('📝 Intento de registro:', { username, email, phone: phone ? 'Presente' : 'Ausente' });
         
         //Validamos que el email no se este registrado en la base de datos
@@ -124,6 +127,13 @@ export const register = async (req, res)=>{
             phone,
             password, // Sin hashear, el modelo lo hará automáticamente
             role: role._id,
+            smsConsent: true,
+            consentRecord: {
+                optedInAt: new Date(),
+                ipAddress: req.ip || '',
+                userAgent: req.get('User-Agent') || '',
+                disclosureText: 'I consent to join the FR Family Investments Notifications SMS program and receive automated texts from FR Family Investments about appointments, verification codes, and curated properties. Message and data rates may apply. Message frequency varies. Reply STOP to opt out, HELP for help. Consent is optional and not a condition of purchase or account creation.'
+            },
             notificationPreferences: {
                 cities: sanitizedCities,
                 lastUpdatedAt: new Date()
