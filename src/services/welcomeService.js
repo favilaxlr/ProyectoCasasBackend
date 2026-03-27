@@ -17,7 +17,7 @@ if (TWILIO_ENABLED) {
 }
 
 export const sendWelcomeSMS = async (phone) => {
-    const welcomeMsg = 'FR Family Investments: Welcome! You are now subscribed to SMS notifications. Msg freq varies; msg & data rates may apply. Reply STOP to opt out, HELP for help.';
+    const welcomeMsg = 'Welcome! You are now subscribed to SMS notifications from FR Family Investments. Message frequency varies, message and data rates may apply.';
     try {
         if (twilioClient && TWILIO_ENABLED) {
             const smsBody = buildSMS(welcomeMsg);

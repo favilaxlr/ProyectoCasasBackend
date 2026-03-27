@@ -1,5 +1,5 @@
-const BRAND_PREFIX = 'FRFI ';
-const OPT_OUT_TAG = ' STOP=stop HELP=help';
+const BRAND_PREFIX = 'FR Family Investments: ';
+const OPT_OUT_TAG = ' Reply STOP to opt out, HELP for help.';
 const DEFAULT_LIMIT = 160;
 
 const normalizeText = (value = '') => value.toString().replace(/\s+/g, ' ').trim();
