@@ -89,4 +89,13 @@ export const loginSchema = z.object({
         .min(6, {
             message: 'El password debe tener al menos 6 caracteres'
         })
-})//Fin de registerSchema
+});
+
+export const verifyCodeSchema = z.object({
+    email: z.string({ required_error: 'Email is required' }).trim().email('Invalid email'),
+    code: z.string({ required_error: 'Code is required' }).trim().regex(/^\d{6}$/, 'The code must be 6 digits')
+});
+
+export const resendCodeSchema = z.object({
+    email: z.string({ required_error: 'Email is required' }).trim().email('Invalid email')
+});

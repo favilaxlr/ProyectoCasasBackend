@@ -1,4 +1,11 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
+
+// En Windows, Node a veces usa 127.0.0.1 como DNS. Las consultas SRV de
+// mongodb+srv:// fallan con querySrv ECONNREFUSED aunque internet sí funciona.
+if (dns.getServers().every((server) => server === '127.0.0.1' || server === '::1')) {
+    dns.setServers(['8.8.8.8', '1.1.1.1', '192.168.1.1']);
+}
 
 export const connectDB = async () => {
     try {

@@ -197,7 +197,8 @@ export const login = async (req, res)=>{
             return res.status(403)
                         .json({
                             message: ["Debes verificar tu email y número de teléfono antes de iniciar sesión"],
-                            needsVerification: true
+                            needsVerification: true,
+                            email: userFound.email
                         })
         
         //Si se encuentra en la bd y el password coincide

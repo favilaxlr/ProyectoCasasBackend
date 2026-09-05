@@ -1,18 +1,16 @@
-import sgMail from '@sendgrid/mail';
 import twilio from 'twilio';
 import dotenv from 'dotenv';
 import { getTwilioSenderConfig } from '../libs/twilioSender.js';
 import { buildSMS } from '../libs/smsTemplates.js';
+import { isTwilioEmailEnabled, sendEmail } from './twilioEmail.js';
+import { wrapEmail, escapeHtml } from './emailLayout.js';
 
 dotenv.config();
 
-// Configurar SendGrid
-const SENDGRID_ENABLED = process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY !== 'your_sendgrid_key_here';
-if (SENDGRID_ENABLED) {
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    console.log('✅ SendGrid configurado correctamente');
+if (isTwilioEmailEnabled()) {
+    console.log('✅ Twilio Email configurado');
 } else {
-    console.log('💡 SendGrid no configurado - Modo MOCK para emails');
+    console.log('💡 Twilio Email no configurado - Modo MOCK para emails');
 }
 
 // Configurar Twilio (reutilizando del sistema existente)
@@ -59,38 +57,44 @@ export const sendVerificationSMS = async (phone, code) => {
 // Enviar código por Email
 export const sendVerificationEmail = async (email, code, username) => {
     try {
-        if (SENDGRID_ENABLED) {
-            const msg = {
-                to: email,
-                from: process.env.SENDGRID_FROM_EMAIL || 'noreply@frfamilyinvestments.com',
-                subject: 'Verifica tu cuenta - FR Family Investments',
-                html: `
-                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                        <h2 style="color: #2563eb;">¡Bienvenido a FR Family Investments, ${username}!</h2>
-                        <p>Gracias por registrarte. Para completar tu registro, por favor verifica tu correo electrónico usando el siguiente código:</p>
-                        <div style="background-color: #f3f4f6; padding: 20px; text-align: center; margin: 20px 0;">
-                            <h1 style="color: #1f2937; letter-spacing: 5px; margin: 0;">${code}</h1>
-                        </div>
-                        <p style="color: #6b7280;">Este código expirará en 10 minutos.</p>
-                        <p>Si no solicitaste este código, puedes ignorar este mensaje.</p>
-                        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-                        <p style="color: #9ca3af; font-size: 12px;">FR Family Investments - Tu socio en bienes raíces</p>
-                    </div>
-                `
-            };
-            
-            console.log('📤 Intentando enviar email con SendGrid...');
-            console.log('📧 Destinatario:', email);
-            console.log('📨 Remitente:', msg.from);
-            
-            await sgMail.send(msg);
-            console.log(`✅ Email de verificación enviado a ${email}`);
-            return { success: true, mode: 'sendgrid' };
-        } else {
-            // Modo mock
-            console.log(`📧 [MOCK] Email de verificación enviado a ${email}: ${code}`);
-            return { success: true, mode: 'mock' };
-        }
+        const html = wrapEmail({
+            preheader: `Your verification code is ${code}. It expires in 10 minutes.`,
+            eyebrow: 'Account verification',
+            title: `Welcome, ${username || 'there'}`,
+            intro: 'Use this code to confirm your email and finish creating your FR Family Investments account.',
+            bodyHtml: `
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#050914;border-radius:16px;">
+                <tr>
+                  <td align="center" style="padding:28px 20px 12px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:2.2px;text-transform:uppercase;color:#5eead4;">
+                    Your code
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:0 20px 18px;font-family:Georgia,'Times New Roman',serif;font-size:40px;letter-spacing:10px;color:#ffffff;font-weight:700;">
+                    ${escapeHtml(code)}
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:0 24px 26px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#94a3b8;">
+                    Valid for 10 minutes · Enter it on the verification screen
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:22px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:21px;color:#64748b;">
+                If you did not create an account, you can ignore this message.
+              </p>
+            `,
+            footerNote: 'FR Family Investments — your partner in real estate.'
+        });
+        const result = await sendEmail({
+            to: email,
+            subject: 'Your verification code · FR Family Investments',
+            html,
+            text: `Welcome to FR Family Investments. Your verification code is ${code}. It expires in 10 minutes.`
+        });
+
+        console.log(`✅ Email de verificación enviado a ${email} (${result.mode})`);
+        return { success: true, mode: result.mode };
     } catch (error) {
         console.error('❌ Error sending verification email:', error.message);
         console.error('📋 Full error:', error.response?.body || error);

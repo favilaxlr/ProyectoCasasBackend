@@ -24,9 +24,11 @@ import notificationRoutes from './routes/notifications.routes.js';
 //Importamos las rutas para ofertas
 import offerRoutes from './routes/offers.routes.js';
 import notificationPreferencesRoutes from './routes/notificationPreferences.routes.js';
+import listingRequestRoutes from './routes/listingRequests.routes.js';
 import { issueCsrfToken, csrfProtection } from './middlewares/csrfProtection.js';
 
 const app= express();
+app.set('trust proxy', 1);
 
 const allowedOrigins = [
     process.env.BASE_URL_FRONTEND?.trim(),
@@ -70,6 +72,7 @@ app.use('/api/', reviewRoutes);
 app.use('/api/admin/', notificationRoutes);
 app.use('/api/', offerRoutes);
 app.use('/api/', notificationPreferencesRoutes);
+app.use('/api/', listingRequestRoutes);
 
 // Health check endpoint for Render
 app.get('/health', (req, res) => {

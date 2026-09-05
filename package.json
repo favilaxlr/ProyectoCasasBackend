@@ -8,7 +8,8 @@
     "dev": "nodemon src/index.js",
     "setup": "node src/libs/initialSetup.js",
     "geocode": "node geocode-properties.js",
-    "seed": "node src/seeds/seedData.js"
+    "seed": "node src/seeds/seedData.js",
+    "seed:local": "node src/seeds/seedLocalUsers.js"
   },
   "keywords": [],
   "author": "",

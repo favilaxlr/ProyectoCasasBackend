@@ -71,7 +71,7 @@ export const uploadToCloudinary = async (req, res, next) => {
 };
 
 // Middleware para imágenes opcionales (para reseñas)
-export const uploadOptionalToCloudinary = async (req, res, next) => {
+const createOptionalUploader = (folder) => async (req, res, next) => {
     const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     
     try {
@@ -101,28 +101,37 @@ export const uploadOptionalToCloudinary = async (req, res, next) => {
                 }
             }
 
-            // Subir todas las imágenes a Cloudinary
-            const uploadPromises = req.files.map(async (file) => {
-                const base64Image = Buffer.from(file.buffer).toString('base64');
-                const dataUri = `data:${file.mimetype};base64,${base64Image}`;
-                
-                const uploadResponse = await cloudinary.v2.uploader.upload(dataUri, {
-                    folder: 'reviews' // Organizar en carpeta de reviews
-                });
-                
-                return {
-                    path: uploadResponse.secure_url,
-                    filename: uploadResponse.public_id
-                };
-            });
+            try {
+                const uploadPromises = req.files.map(async (file) => {
+                    const base64Image = Buffer.from(file.buffer).toString('base64');
+                    const dataUri = `data:${file.mimetype};base64,${base64Image}`;
 
-            req.files = await Promise.all(uploadPromises);
-            next();
+                    const uploadResponse = await cloudinary.v2.uploader.upload(dataUri, {
+                        folder
+                    });
+
+                    return {
+                        path: uploadResponse.secure_url,
+                        filename: uploadResponse.public_id
+                    };
+                });
+
+                req.files = await Promise.all(uploadPromises);
+                next();
+            } catch (uploadError) {
+                console.error('Error uploading optional images to Cloudinary:', uploadError);
+                return res.status(500).json({ message: ['Error uploading images'] });
+            }
         });
     } catch (error) {
         return res.status(400).json({ message: [error.message] });
     }
 };
+
+// Middleware para imágenes opcionales (para reseñas)
+export const uploadOptionalToCloudinary = createOptionalUploader('reviews');
+
+export const uploadListingRequestImages = createOptionalUploader('listing-requests');
 
 // Middleware para imagen única (compatibilidad)
 export const uploadSingleToCloudinary = async (req, res, next) => {

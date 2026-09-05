@@ -6,7 +6,7 @@ import { authRequired } from '../middlewares/validateToken.js';
 import { validateSchema } from '../middlewares/validateSchemas.js';
 
 //Importamos los esquemas de validacion
-import { registerSchema, loginSchema } from '../schemas/auth.schemas.js';
+import { registerSchema, loginSchema, verifyCodeSchema, resendCodeSchema } from '../schemas/auth.schemas.js';
 
 const router = Router();
 
@@ -26,9 +26,9 @@ router.post('/logout', logout);
 router.get('/profile', authRequired, profile);
 
 //Ruta para verificar código de verificación
-router.post('/verify-code', verifyUserCode);
+router.post('/verify-code', validateSchema(verifyCodeSchema), verifyUserCode);
 
 //Ruta para reenviar código de verificación
-router.post('/resend-code', resendVerificationCode);
+router.post('/resend-code', validateSchema(resendCodeSchema), resendVerificationCode);
 
 export default router;
