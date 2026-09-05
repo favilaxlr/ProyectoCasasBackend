@@ -103,27 +103,21 @@ export const createProperty = async (req, res) => {
         });
 
         const savedProperty = await newProperty.save();
-        
-        // ENVÍO AUTOMÁTICO DE NOTIFICACIONES MASIVAS
-        try {
-            // Only send notifications when Twilio is configured
-            if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID !== 'your_account_sid_here') {
-                console.log('Starting mass notification dispatch...');
-                const notificationResult = await sendMassNotification(savedProperty, req.user.id);
-                if (notificationResult.skipped) {
-                    console.log('Notifications skipped: no subscribers for city');
-                } else {
-                    console.log('Notifications sent:', notificationResult.stats);
-                }
-            } else {
-                console.log('Twilio not configured - skipping SMS notifications');
-            }
-        } catch (notificationError) {
-            console.error('Error en notificaciones masivas:', notificationError);
-            // No fallar la creación de propiedad por error en notificaciones
+        res.status(201).json(savedProperty);
+
+        if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID !== 'your_account_sid_here') {
+            sendMassNotification(savedProperty, req.user.id)
+                .then((notificationResult) => {
+                    if (notificationResult.skipped) {
+                        console.log('Notifications skipped: no subscribers for city');
+                    } else {
+                        console.log('Notifications sent:', notificationResult.stats);
+                    }
+                })
+                .catch((notificationError) => {
+                    console.error('Error en notificaciones masivas:', notificationError);
+                });
         }
-        
-        res.json(savedProperty);
     } catch (error) {
         console.error('Error al crear propiedad:', error);
         // Si es error de validación de Mongoose, devolver 400 con detalles

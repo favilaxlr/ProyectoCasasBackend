@@ -132,6 +132,9 @@ export const propertySchema = z.object({
     
     contact: z.object({
         phone: z.string().optional(),
-        email: z.string().email("Invalid email").optional()
+        email: z.preprocess(
+            (val) => (val === '' || val == null ? undefined : val),
+            z.string().email("Invalid email").optional()
+        )
     }).optional()
 });

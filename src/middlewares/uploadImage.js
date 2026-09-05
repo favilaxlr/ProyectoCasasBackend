@@ -1,6 +1,20 @@
 import multer from 'multer';
 import cloudinary from 'cloudinary';
 
+const uploadBufferToCloudinary = (file, folder) => new Promise((resolve, reject) => {
+    const stream = cloudinary.v2.uploader.upload_stream(
+        { folder, resource_type: 'image' },
+        (error, result) => {
+            if (error) return reject(error);
+            resolve({
+                path: result.secure_url,
+                filename: result.public_id
+            });
+        }
+    );
+    stream.end(file.buffer);
+});
+
 //Configuración de multer
 //multer recupera la imagen del request y la carga en memoria local
 const storage = multer.memoryStorage();
@@ -47,23 +61,15 @@ export const uploadToCloudinary = async (req, res, next) => {
                 }
             }
 
-            // Subir todas las imágenes a Cloudinary
-            const uploadPromises = req.files.map(async (file) => {
-                const base64Image = Buffer.from(file.buffer).toString('base64');
-                const dataUri = `data:${file.mimetype};base64,${base64Image}`;
-                
-                const uploadResponse = await cloudinary.v2.uploader.upload(dataUri, {
-                    folder: 'properties' // Organizar en carpeta
-                });
-                
-                return {
-                    path: uploadResponse.secure_url,
-                    filename: uploadResponse.public_id
-                };
-            });
-
-            req.files = await Promise.all(uploadPromises);
-            next();
+            try {
+                req.files = await Promise.all(
+                    req.files.map((file) => uploadBufferToCloudinary(file, 'properties'))
+                );
+                next();
+            } catch (uploadError) {
+                console.error('Error uploading property images to Cloudinary:', uploadError);
+                return res.status(500).json({ message: ['Error uploading images. Please try again.'] });
+            }
         });
     } catch (error) {
         return res.status(400).json({ message: [error.message] });
@@ -102,21 +108,9 @@ const createOptionalUploader = (folder) => async (req, res, next) => {
             }
 
             try {
-                const uploadPromises = req.files.map(async (file) => {
-                    const base64Image = Buffer.from(file.buffer).toString('base64');
-                    const dataUri = `data:${file.mimetype};base64,${base64Image}`;
-
-                    const uploadResponse = await cloudinary.v2.uploader.upload(dataUri, {
-                        folder
-                    });
-
-                    return {
-                        path: uploadResponse.secure_url,
-                        filename: uploadResponse.public_id
-                    };
-                });
-
-                req.files = await Promise.all(uploadPromises);
+                req.files = await Promise.all(
+                    req.files.map((file) => uploadBufferToCloudinary(file, folder))
+                );
                 next();
             } catch (uploadError) {
                 console.error('Error uploading optional images to Cloudinary:', uploadError);
