@@ -35,6 +35,12 @@ const listingRequestSchema = new mongoose.Schema(
         estimatedPrice: {
             type: Number
         },
+        squareFeet: {
+            type: Number
+        },
+        lotSquareFeet: {
+            type: Number
+        },
         description: {
             type: String,
             required: true,

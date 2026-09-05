@@ -76,6 +76,7 @@ const propertySchema = new mongoose.Schema(
                 required: true
             },
             squareFeet: Number,
+            lotSquareFeet: Number,
             propertyType: {
                 type: String,
                 enum: ["house", "apartment", "condo", "townhouse", "vacant_land"],

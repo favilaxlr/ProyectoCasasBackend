@@ -20,9 +20,15 @@ export const createListingRequest = async (req, res) => {
             location,
             propertyType,
             estimatedPrice,
+            squareFeet,
+            lotSquareFeet,
             description,
             aceptaPrivacidad
         } = req.body;
+
+        const toOptionalNumber = (value) => (
+            value === '' || value === undefined || value === null ? undefined : Number(value)
+        );
 
         const listingRequest = new ListingRequest({
             fullName,
@@ -30,9 +36,9 @@ export const createListingRequest = async (req, res) => {
             email,
             location,
             propertyType,
-            estimatedPrice: estimatedPrice === '' || estimatedPrice === undefined
-                ? undefined
-                : Number(estimatedPrice),
+            estimatedPrice: toOptionalNumber(estimatedPrice),
+            squareFeet: toOptionalNumber(squareFeet),
+            lotSquareFeet: toOptionalNumber(lotSquareFeet),
             description,
             images: parseImages(req.files),
             aceptaPrivacidad: aceptaPrivacidad === true || aceptaPrivacidad === 'true' || aceptaPrivacidad === 'on',

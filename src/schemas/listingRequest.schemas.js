@@ -37,6 +37,20 @@ export const listingRequestSchema = z.object({
             .optional()
     ),
 
+    squareFeet: z.preprocess(
+        (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
+        z.number({ invalid_type_error: 'House size must be a number' })
+            .positive('House size must be positive')
+            .optional()
+    ),
+
+    lotSquareFeet: z.preprocess(
+        (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
+        z.number({ invalid_type_error: 'Lot size must be a number' })
+            .positive('Lot size must be positive')
+            .optional()
+    ),
+
     description: z.string({
         required_error: 'Description is required'
     }).trim().min(10, 'Description must be at least 10 characters')
@@ -48,6 +62,14 @@ export const listingRequestSchema = z.object({
             errorMap: () => ({ message: 'You must accept the Privacy Policy' })
         })
     )
+}).superRefine((data, ctx) => {
+    if (data.propertyType === 'vacant_land' && !data.lotSquareFeet) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['lotSquareFeet'],
+            message: 'Lot size is required for urban land'
+        });
+    }
 });
 
 export const listingRequestStatusSchema = z.object({

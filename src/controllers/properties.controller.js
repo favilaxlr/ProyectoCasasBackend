@@ -252,6 +252,7 @@ export const updateProperty = async (req, res) => {
             if (details.bedrooms !== undefined) details.bedrooms = tryNum(details.bedrooms);
             if (details.bathrooms !== undefined) details.bathrooms = tryNum(details.bathrooms);
             if (details.squareFeet !== undefined) details.squareFeet = tryNum(details.squareFeet);
+            if (details.lotSquareFeet !== undefined) details.lotSquareFeet = tryNum(details.lotSquareFeet);
             if (details.yearBuilt !== undefined) details.yearBuilt = tryNum(details.yearBuilt);
             if (typeof details.parking === 'string') details.parking = details.parking === 'true' || details.parking === 'on';
             if (typeof details.petFriendly === 'string') details.petFriendly = details.petFriendly === 'true' || details.petFriendly === 'on';

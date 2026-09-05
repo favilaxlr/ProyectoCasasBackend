@@ -61,6 +61,7 @@ export const validateSchema = (schema) => (req, res, next) => {
             if (nested.details.bedrooms !== undefined) nested.details.bedrooms = tryParseNumber(nested.details.bedrooms);
             if (nested.details.bathrooms !== undefined) nested.details.bathrooms = tryParseNumber(nested.details.bathrooms);
             if (nested.details.squareFeet !== undefined) nested.details.squareFeet = tryParseNumber(nested.details.squareFeet);
+            if (nested.details.lotSquareFeet !== undefined) nested.details.lotSquareFeet = tryParseNumber(nested.details.lotSquareFeet);
             if (nested.details.yearBuilt !== undefined) nested.details.yearBuilt = tryParseNumber(nested.details.yearBuilt);
             if (nested.details.parking !== undefined) nested.details.parking = tryParseBoolean(nested.details.parking);
             if (nested.details.petFriendly !== undefined) nested.details.petFriendly = tryParseBoolean(nested.details.petFriendly);

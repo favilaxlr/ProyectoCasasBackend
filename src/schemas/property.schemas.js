@@ -101,6 +101,10 @@ export const propertySchema = z.object({
             (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
             z.number().optional()
         ),
+        lotSquareFeet: z.preprocess(
+            (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
+            z.number().positive('Lot size must be positive').optional()
+        ),
         propertyType: z.enum(["house", "apartment", "condo", "townhouse", "vacant_land"], {
             required_error: "Property type is required"
         }),

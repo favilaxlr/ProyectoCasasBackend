@@ -6,8 +6,12 @@ const PROPERTY_TYPE_LABELS = {
     apartment: 'Apartment',
     condo: 'Condo',
     townhouse: 'Townhouse',
-    vacant_land: 'Vacant Land'
+    vacant_land: 'Urban Land'
 };
+
+const sizeLabel = (value, suffix = 'sq ft') => (
+    value ? `${Number(value).toLocaleString()} ${suffix}` : 'Not provided'
+);
 
 const resolveRecipients = () => {
     const raw = process.env.LISTING_REQUEST_NOTIFY_EMAIL
@@ -41,6 +45,8 @@ export const sendListingRequestNotification = async (listingRequest) => {
               ${detailRow('Location', escapeHtml(listingRequest.location))}
               ${detailRow('Type', escapeHtml(typeLabel))}
               ${detailRow('Est. price', escapeHtml(priceLabel))}
+              ${detailRow('House size', escapeHtml(sizeLabel(listingRequest.squareFeet)))}
+              ${detailRow('Lot size', escapeHtml(sizeLabel(listingRequest.lotSquareFeet)))}
               ${detailRow('Photos', String(photoCount), true)}
             </table>
           </td>
