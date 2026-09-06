@@ -19,9 +19,11 @@ export const getProperties = async (req, res) => {
 // Función para obtener todas las propiedades públicas (para visitantes)
 export const getAllProperties = async (req, res) => {
     try {
-        const properties = await Property.find({ 'availability.isAvailable': true })
+        const properties = await Property.find()
             .populate('createdBy', 'username email')
-            .populate('lastModifiedBy', 'username email'); // Traer info del creador y modificador
+            .populate('lastModifiedBy', 'username email');
+        const statusOrder = { DISPONIBLE: 0, EN_CONTRATO: 1, VENDIDA: 2 };
+        properties.sort((a, b) => (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9));
         res.json(properties);
     } catch (error) {
         res.status(500)
