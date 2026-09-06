@@ -37,8 +37,11 @@ router.get('/properties/public/:id', getProperty); // Ver una propiedad específ
 
 // Rutas administrativas (requieren autenticación y ser admin o co-admin)
 router.get('/properties', authRequired, isAdminOrCoAdmin, getProperties); // Propiedades del admin
-router.post('/properties', authRequired, isAdminOrCoAdmin, uploadToCloudinary, validateSchema(propertySchema), createProperty); // Crear propiedad
-const formParser = multer().any();
+const formParser = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 20 * 1024 * 1024, files: 10 }
+}).any();
+router.post('/properties', authRequired, isAdminOrCoAdmin, formParser, validateSchema(propertySchema), createProperty);
 router.put('/properties/:id', authRequired, isAdminOrCoAdmin, formParser, updateProperty); // Actualizar propiedad
 router.delete('/properties/:id', authRequired, isAdminOrCoAdmin, deleteProperty); // Eliminar propiedad
 

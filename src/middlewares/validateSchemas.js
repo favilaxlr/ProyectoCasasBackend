@@ -84,10 +84,7 @@ export const validateSchema = (schema) => (req, res, next) => {
             if (nested.contact.email !== undefined) nested.contact.email = nested.contact.email;
         }
 
-        // Reemplazar req.body por el objeto transformado para la validación
-        req.body = nested;
-
-        schema.parse(req.body);
+        req.body = schema.parse(nested);
         next();
     } catch (error) {
         // Loguear error de validación con contexto útil

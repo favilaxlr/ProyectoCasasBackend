@@ -84,18 +84,12 @@ export const propertySchema = z.object({
     
     details: z.object({
         bedrooms: z.preprocess(
-            (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
-            z.number({
-                required_error: "Number of bedrooms is required",
-                invalid_type_error: "Number of bedrooms must be a number"
-            }).min(0, "Bedrooms cannot be negative")
+            (val) => val === '' || val === null || val === undefined || Number.isNaN(Number(val)) ? 0 : Number(val),
+            z.number().min(0, "Bedrooms cannot be negative")
         ),
         bathrooms: z.preprocess(
-            (val) => val === '' || val === null || val === undefined ? undefined : Number(val),
-            z.number({
-                required_error: "Number of bathrooms is required",
-                invalid_type_error: "Number of bathrooms must be a number"
-            }).min(0, "Bathrooms cannot be negative")
+            (val) => val === '' || val === null || val === undefined || Number.isNaN(Number(val)) ? 0 : Number(val),
+            z.number().min(0, "Bathrooms cannot be negative")
         ),
         squareFeet: z.preprocess(
             (val) => val === '' || val === null || val === undefined ? undefined : Number(val),

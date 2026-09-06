@@ -74,16 +74,23 @@ export const createProperty = async (req, res) => {
             businessMode
         } = processedBody;
 
-        // Procesar imágenes (hasta 10 máximo)
         let images = [];
-        if (req.files && req.files.length > 0) {
-            const maxImages = Math.min(req.files.length, 10);
-            images = req.files.slice(0, maxImages).map((file, index) => ({
+        const uploadedFiles = (req.files || []).filter((file) => file?.path && file?.filename);
+        if (uploadedFiles.length > 0) {
+            const maxImages = Math.min(uploadedFiles.length, 10);
+            images = uploadedFiles.slice(0, maxImages).map((file, index) => ({
                 url: file.path,
                 publicId: file.filename,
                 isMain: index === 0,
                 caption: ''
             }));
+        }
+
+        if (details) {
+            details.bedrooms = Number(details.bedrooms) || 0;
+            details.bathrooms = Number(details.bathrooms) || 0;
+            if (details.squareFeet !== undefined) details.squareFeet = Number(details.squareFeet) || undefined;
+            if (details.lotSquareFeet !== undefined) details.lotSquareFeet = Number(details.lotSquareFeet) || undefined;
         }
 
         const newProperty = new Property({
@@ -126,7 +133,7 @@ export const createProperty = async (req, res) => {
             return res.status(400).json({ message: messages });
         }
         res.status(500)
-            .json({ message: ['Error al crear la propiedad'] });
+            .json({ message: ['Could not create the property. Please try again.'] });
     }
 };
 

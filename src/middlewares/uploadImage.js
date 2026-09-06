@@ -18,45 +18,51 @@ const uploadBufferToCloudinary = (file, folder) => new Promise((resolve, reject)
 //Configuración de multer
 //multer recupera la imagen del request y la carga en memoria local
 const storage = multer.memoryStorage();
+const ALLOWED_MIMES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
+
 const uploadSingle = multer({
     storage: storage,
     limits: {
-        fileSize: 5 * 1024 * 1024//5MB
+        fileSize: MAX_FILE_SIZE
     }
 }).single('image');
 
 const uploadMultiple = multer({
     storage: storage,
     limits: {
-        fileSize: 5 * 1024 * 1024,//5MB por archivo
-        files: 10 // Máximo 10 archivos
+        fileSize: MAX_FILE_SIZE,
+        files: 10
     }
-}).array('images', 10); // 'images' es el nombre del campo, 10 es el máximo
+}).array('images', 10);
+
+const isAllowedMime = (file) => {
+    const mime = (file.mimetype || '').toLowerCase();
+    if (ALLOWED_MIMES.includes(mime)) return true;
+    return /\.(jpe?g|png|gif|webp|hei[cf])$/i.test(file.originalname || '');
+};
 
 export const uploadToCloudinary = async (req, res, next) => {
-    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    
     try {
         uploadMultiple(req, res, async (err) => {
             if (err) {
                 if (err.code === 'LIMIT_FILE_SIZE') {
-                    return res.status(400).json({ message: ['Tamaño del archivo excedido'] });
+                    return res.status(400).json({ message: ['A photo is larger than 20MB'] });
                 }
                 if (err.code === 'LIMIT_FILE_COUNT') {
-                    return res.status(400).json({ message: ['Máximo 10 imágenes permitidas'] });
+                    return res.status(400).json({ message: ['You can upload up to 10 photos'] });
                 }
                 return res.status(400).json({ message: [err.message] });
             }
 
             if (!req.files || req.files.length === 0) {
-                return res.status(400).json({ message: ['No se encontraron imágenes'] });
+                return res.status(400).json({ message: ['Please add at least one photo'] });
             }
 
-            // Validar tipos de archivo
             for (const file of req.files) {
-                if (!allowedMimes.includes(file.mimetype)) {
-                    return res.status(400).json({ 
-                        message: [`Tipo de archivo no permitido: ${file.mimetype}`] 
+                if (!isAllowedMime(file)) {
+                    return res.status(400).json({
+                        message: [`Unsupported photo type: ${file.originalname || file.mimetype}`]
                     });
                 }
             }
@@ -78,16 +84,14 @@ export const uploadToCloudinary = async (req, res, next) => {
 
 // Middleware para imágenes opcionales (para reseñas)
 const createOptionalUploader = (folder) => async (req, res, next) => {
-    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    
     try {
         uploadMultiple(req, res, async (err) => {
             if (err) {
                 if (err.code === 'LIMIT_FILE_SIZE') {
-                    return res.status(400).json({ message: ['Tamaño del archivo excedido'] });
+                    return res.status(400).json({ message: ['A photo is larger than 20MB'] });
                 }
                 if (err.code === 'LIMIT_FILE_COUNT') {
-                    return res.status(400).json({ message: ['Máximo 10 imágenes permitidas'] });
+                    return res.status(400).json({ message: ['You can upload up to 10 photos'] });
                 }
                 return res.status(400).json({ message: [err.message] });
             }
@@ -98,11 +102,10 @@ const createOptionalUploader = (folder) => async (req, res, next) => {
                 return next();
             }
 
-            // Validar tipos de archivo
             for (const file of req.files) {
-                if (!allowedMimes.includes(file.mimetype)) {
-                    return res.status(400).json({ 
-                        message: [`Tipo de archivo no permitido: ${file.mimetype}`] 
+                if (!isAllowedMime(file)) {
+                    return res.status(400).json({
+                        message: [`Unsupported photo type: ${file.originalname || file.mimetype}`]
                     });
                 }
             }
